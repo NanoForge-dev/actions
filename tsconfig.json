@@ -44,7 +44,6 @@
     "experimentalDecorators": true,
     "lib": ["ESNext", "esnext.disposable", "DOM"],
     "target": "ESNext",
-    "types": ["node"],
     "useDefineForClassFields": true
   },
   "include": ["src/**/*.ts"],
