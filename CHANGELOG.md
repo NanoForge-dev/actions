@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.1.0](https://github.com/NanoForge-dev/actions/tree/@nanoforge-dev/actions@1.1.0) - (2026-01-19)
+
+## Features
+
+- Add author to commit (#5) ([f895eaa](https://github.com/NanoForge-dev/actions/commit/f895eaa1c94493281b1c3af308e1d81db5720d3e)) by @Exeloo
+- Add commit to pre-release process (#4) ([5e4fcf2](https://github.com/NanoForge-dev/actions/commit/5e4fcf275cd538d156d06a938c5c82e792f4dfe1)) by @Exeloo
+- Migrate to new repo and add pre-release ([36bfe8f](https://github.com/NanoForge-dev/actions/commit/36bfe8fa0e1b6411310e681d1b9ec91046582b56)) by @Exeloo
+
+### New Contributors
+
+- @Exeloo made their first contribution in #6
+
 # [@nanoforge-dev/actions@1.0.2](https://github.com/NanoForge-dev/Engine/compare/@nanoforge-dev/actions@1.0.1...@nanoforge-dev/actions@1.0.2) - (2026-01-10)
 
 ## Bug Fixes
