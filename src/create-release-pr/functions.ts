@@ -70,7 +70,7 @@ export const runRelease = async (name: string): Promise<void> => {
 
 export const pushRelease = async (name: string, version: string, branch: string): Promise<void> => {
   await $`git add --all`;
-  await $`git commit -m "chore(${name.replace("@nanoforge-dev/", "")}): release ${name}@${version}" --author "github-actions[bot] <username@users.noreply.github.com>"`;
+  await $`git -c user.name='github-actions[bot]' -c user.email='username@users.noreply.github.com' commit -m "chore(${name.replace("@nanoforge-dev/", "")}): release ${name}@${version}"`;
   await $`git push origin refs/heads/${branch}:${branch}`;
 };
 
