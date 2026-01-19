@@ -24,11 +24,11 @@ const createSummary = async (name: string, dry: boolean) => {
 
   result.addHeading(`${pkg.name} pre-released`, 2);
 
-  result.addRaw(`> Version : ${pkg.version}\n`);
+  result.addRaw(`Version : ${pkg.version}\n`);
   result.addSeparator();
-  result.addRaw("> Changelog :\n");
+  result.addRaw("Changelog :\n");
   result.addBreak();
-  result.addCodeBlock(changelog);
+  result.addCodeBlock(changelog, "markdown");
 
   await result.write();
 };

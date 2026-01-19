@@ -24,13 +24,12 @@ export const resolveChangelog = async (
   version: string,
 ): Promise<string> => {
   const changelogFile = await file(join(path, "CHANGELOG.md")).text();
-  let changelogLines: string[] = [];
+  const changelogLines: string[] = [];
   let foundChangelog = false;
 
   for (const line of changelogFile.split("\n")) {
     if (line.startsWith("# [")) {
       if (foundChangelog) {
-        if (changelogLines.at(-1) === "") changelogLines = changelogLines.slice(2, -1);
         break;
       }
       if (!line.startsWith(`# [${name}@${version}]`)) break;
@@ -62,7 +61,7 @@ export const updateVersion = async (path: string, version: string): Promise<void
   const fullPath = join(path, "package.json");
   const pkg = await file(fullPath).json();
   pkg.version = version;
-  await write(fullPath, JSON.stringify(pkg));
+  await write(fullPath, `${JSON.stringify(pkg, null, 2)}\n`);
 };
 
 export const runRelease = async (name: string): Promise<void> => {
