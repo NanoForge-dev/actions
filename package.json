@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@nanoforge-dev/actions",
+  "version": "1.0.2",
+  "description": "NanoForge Actions",
+  "keywords": [
+    "nanoforge",
+    "game",
+    "actions"
+  ],
+  "homepage": "https://github.com/NanoForge-dev/actions#readme",
+  "bugs": "https://github.com/NanoForge-dev/actions/issues",
+  "license": "MIT",
+  "contributors": [
+    "Bill <timothe.jacquot@epitech.eu>",
+    "Exelo <exelo.corp@gmail.com>",
+    "Fexkoser <martin.fillon@epitech.eu>",
+    "Tchips <leo.outmizguine@epitech.eu>"
+  ],
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "type": "module",
+  "directories": {
+    "lib": "src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NanoForge-dev/actions.git"
+  },
+  "funding": "https://github.com/NanoForge-dev/actions?sponsor",
+  "scripts": {
+    "build": "tsc --noEmit && tsup",
+    "lint": "prettier --check . && eslint --format=pretty src",
+    "format": "prettier --write . && eslint --fix --format=pretty src",
+    "prepack": "pnpm run build && pnpm run lint",
+    "changelog": "git cliff --prepend ./CHANGELOG.md -u -c ./cliff.toml -r ../../ --include-path '*'",
+    "release": "cliff-jumper"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:actions",
+    "@actions/github": "catalog:actions",
+    "commander": "catalog:core"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "catalog:ci",
+    "@commitlint/config-conventional": "catalog:ci",
+    "@favware/cliff-jumper": "catalog:ci",
+    "@nanoforge-dev/utils-eslint-config": "catalog:lint",
+    "@nanoforge-dev/utils-prettier-config": "catalog:lint",
+    "@npm/types": "catalog:core",
+    "@trivago/prettier-plugin-sort-imports": "catalog:lint",
+    "@types/bun": "catalog:core",
+    "eslint": "catalog:lint",
+    "husky": "catalog:ci",
+    "lint-staged": "catalog:ci",
+    "prettier": "catalog:lint",
+    "terser": "catalog:build",
+    "tsup": "catalog:build",
+    "typescript": "catalog:build"
+  },
+  "packageManager": "pnpm@10.28.1",
+  "engines": {
+    "node": "25"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "lint-staged": {
+    "**": [
+      "prettier --write"
+    ],
+    "src/**/*.ts": [
+      "eslint --fix"
+    ]
+  }
+}
