@@ -56,7 +56,7 @@ const bootstrap = async () => {
   await updateVersion(pkg.path, version);
   await runRelease(pkg.name);
   if (!dry) {
-    await pushRelease(branchName);
+    await pushRelease(pkg.name, version, branchName);
     await createPR(branchName);
   }
 
