@@ -28,10 +28,11 @@ const createSummary = async (name: string, dry: boolean) => {
   result.addSeparator();
   result.addRaw("Changelog :\n");
   result.addBreak();
-  console.log(changelog);
   result.addCodeBlock(changelog, "markdown");
 
   await result.write();
+
+  console.log(changelog);
 };
 
 const bootstrap = async () => {

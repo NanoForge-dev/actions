@@ -24,6 +24,7 @@ export const resolveChangelog = async (
   version: string,
 ): Promise<string> => {
   const changelogFile = await file(join(path, "CHANGELOG.md")).text();
+  console.log(`Changelog file: ${changelogFile}`);
   let changelogLines: string[] = [];
   let foundChangelog = false;
 
