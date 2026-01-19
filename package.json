@@ -38,7 +38,8 @@
     "format": "prettier --write . && eslint --fix --format=pretty src",
     "prepack": "pnpm run build && pnpm run lint",
     "changelog": "git cliff --prepend ./CHANGELOG.md -u -c ./cliff.toml -r ../../ --include-path '*'",
-    "release": "cliff-jumper"
+    "release": "cliff-jumper",
+    "prepare": "husky"
   },
   "dependencies": {
     "@actions/core": "catalog:actions",
