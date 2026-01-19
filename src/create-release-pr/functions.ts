@@ -68,7 +68,9 @@ export const runRelease = async (name: string): Promise<void> => {
   await $`pnpm --filter=${name} run release --skip-automatic-bump --skip-tag`;
 };
 
-export const pushRelease = async (branch: string): Promise<void> => {
+export const pushRelease = async (name: string, version: string, branch: string): Promise<void> => {
+  await $`git add --all`;
+  await $`git commit -m "chore(${name.replace("@nanoforge-dev/", "")}): release ${name}@${version}"`;
   await $`git push origin refs/heads/${branch}:${branch}`;
 };
 
