@@ -62,7 +62,7 @@ export const updateVersion = async (path: string, version: string): Promise<void
   const fullPath = join(path, "package.json");
   const pkg = await file(fullPath).json();
   pkg.version = version;
-  await write(fullPath, JSON.stringify(pkg));
+  await write(fullPath, `${JSON.stringify(pkg, null, 2)}\n`);
 };
 
 export const runRelease = async (name: string): Promise<void> => {
