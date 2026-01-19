@@ -24,14 +24,12 @@ export const resolveChangelog = async (
   version: string,
 ): Promise<string> => {
   const changelogFile = await file(join(path, "CHANGELOG.md")).text();
-  console.log(`Changelog file: ${changelogFile}`);
-  let changelogLines: string[] = [];
+  const changelogLines: string[] = [];
   let foundChangelog = false;
 
   for (const line of changelogFile.split("\n")) {
     if (line.startsWith("# [")) {
       if (foundChangelog) {
-        if (changelogLines.at(-1) === "") changelogLines = changelogLines.slice(2, -1);
         break;
       }
       if (!line.startsWith(`# [${name}@${version}]`)) break;
