@@ -8,7 +8,7 @@
   "lockFileMaintenance": {
     "enabled": true
   },
-  "allowedPostUpgradeCommands": ["^pnpm install.*$"],
+  "allowedCommands": ["^pnpm install.*$"],
   "postUpgradeTasks": {
     "commands": ["pnpm install --lockfile-only"],
     "executionMode": "branch",
