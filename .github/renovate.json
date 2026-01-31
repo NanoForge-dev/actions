@@ -5,7 +5,7 @@
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
   "reviewers": ["Exeloo"],
-  "rangeStrategy": "replace",
+  "rangeStrategy": "update-lockfile",
   "lockFileMaintenance": {
     "enabled": true
   }
