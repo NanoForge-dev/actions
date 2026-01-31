@@ -5,8 +5,13 @@
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
   "reviewers": ["Exeloo"],
-  "rangeStrategy": "update-lockfile",
   "lockFileMaintenance": {
     "enabled": true
+  },
+  "allowedPostUpgradeCommands": ["^pnpm install.*$"],
+  "postUpgradeTasks": {
+    "commands": ["pnpm install --lockfile-only"],
+    "executionMode": "branch",
+    "fileFilters": ["pnpm-workspace.yaml", "pnpm-lock.yaml", "**/package.json"]
   }
 }
