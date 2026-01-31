@@ -4,5 +4,9 @@
   "baseBranches": ["main"],
   "rebaseWhen": "conflicted",
   "labels": ["dependencies"],
-  "reviewers": ["Exeloo"]
+  "reviewers": ["Exeloo"],
+  "rangeStrategy": "replace",
+  "lockFileMaintenance": {
+    "enabled": true
+  }
 }
