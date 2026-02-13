@@ -8,10 +8,6 @@
   "lockFileMaintenance": {
     "enabled": true
   },
-  "allowedCommands": ["^pnpm install.*$"],
-  "postUpgradeTasks": {
-    "commands": ["pnpm install --lockfile-only"],
-    "executionMode": "branch",
-    "fileFilters": ["pnpm-workspace.yaml", "pnpm-lock.yaml", "**/package.json"]
-  }
+  "allowScripts": true,
+  "ignoreScripts": false
 }
