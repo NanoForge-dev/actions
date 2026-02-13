@@ -1,7 +1,7 @@
 catalogs:
   actions:
     '@actions/core': ^2.0.2
-    '@actions/github': ^7.0.0
+    '@actions/github': ^9.0.0
   build:
     terser: ^5.46.0
     tsup: ^8.5.1
