@@ -101,14 +101,14 @@ async function getReleaseEntries(dry: boolean, devTag?: string, includePrivate: 
               if (changelogLines.at(-1) === "") {
                 changelogLines = changelogLines.slice(2, -1);
               }
-
               break;
             }
 
-            // Check changelog release version and assume no changelog if version does not match
-            if (!line.startsWith(`# [${release.name}@${release.version}]`)) {
+            if (
+              !line.startsWith(`# [${release.name}@${release.version}]`) &&
+              !line.startsWith(`# [${release.version}]`)
+            )
               break;
-            }
 
             foundChangelog = true;
             continue;

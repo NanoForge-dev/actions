@@ -32,7 +32,7 @@ export const resolveChangelog = async (
       if (foundChangelog) {
         break;
       }
-      if (!line.startsWith(`# [${name}@${version}]`)) break;
+      if (!line.startsWith(`# [${name}@${version}]`) && !line.startsWith(`# [${version}]`)) break;
       foundChangelog = true;
     }
     if (foundChangelog) changelogLines.push(line);
