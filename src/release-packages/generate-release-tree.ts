@@ -35,7 +35,7 @@ async function fetchDevVersion(pkg: string, tag: string) {
   }
 }
 
-async function getReleaseEntries(dry: boolean, devTag?: string) {
+async function getReleaseEntries(dry: boolean, devTag?: string, includePrivate: boolean = false) {
   const releaseEntries: ReleaseEntry[] = [];
   const packageList: pnpmTree[] =
     await $`pnpm list --recursive --only-projects --prod --json`.json();
@@ -45,7 +45,7 @@ async function getReleaseEntries(dry: boolean, devTag?: string) {
 
   for (const pkg of packageList) {
     // Don't release private packages ever (npm will error anyways)
-    if (pkg.private) continue;
+    if (!includePrivate && pkg.private) continue;
     // Just in case
     if (!pkg.version || !pkg.name) continue;
 
@@ -141,8 +141,9 @@ export async function generateReleaseTree(
   devTag?: string,
   packageName?: string,
   exclude?: string[],
+  includePrivate: boolean = false,
 ) {
-  let releaseEntries = await getReleaseEntries(dry, devTag);
+  let releaseEntries = await getReleaseEntries(dry, devTag, includePrivate);
   // Try to early return if the package doesn't have deps
   if (packageName && packageName !== "all") {
     const releaseEntry = releaseEntries.find((entry) => entry.name === packageName);

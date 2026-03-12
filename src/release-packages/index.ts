@@ -11,6 +11,7 @@ function npmPackageLink(packageName: string) {
 const excludeInput = getInput("exclude");
 let dryInput = false;
 let devInput = false;
+let npmInput = true;
 
 try {
   devInput = getBooleanInput("dev");
@@ -20,6 +21,12 @@ try {
 
 try {
   dryInput = getBooleanInput("dry");
+} catch {
+  // We're not running in actions or the input isn't set (cron)
+}
+
+try {
+  npmInput = getBooleanInput("npm");
 } catch {
   // We're not running in actions or the input isn't set (cron)
 }
@@ -35,6 +42,7 @@ program
   )
   .option("--dry", "skips actual publishing and outputs logs instead", dryInput)
   .option("--dev", "publishes development versions and skips tagging / github releases", devInput)
+  .option("--npm", "release packages on npm registry", npmInput)
   .option("--tag <tag>", 'tag to use for dev releases (defaults to "dev")', getInput("tag"))
   .parse();
 
@@ -42,8 +50,9 @@ const {
   exclude,
   dry,
   dev,
+  npm,
   tag: inputTag,
-} = program.opts<{ dev: boolean; dry: boolean; exclude: string[]; tag: string }>();
+} = program.opts<{ dev: boolean; dry: boolean; npm: boolean; exclude: string[]; tag: string }>();
 
 // All this because getInput('tag') will return empty string when not set :P
 if (!dev && inputTag.length) {
@@ -52,7 +61,7 @@ if (!dev && inputTag.length) {
 
 const tag = inputTag.length ? inputTag : dev ? "dev" : undefined;
 const [packageName] = program.processedArgs as [string];
-const tree = await generateReleaseTree(dry, tag, packageName, exclude);
+const tree = await generateReleaseTree(dry, tag, packageName, exclude, !npm);
 
 interface ReleaseResult {
   identifier: string;
@@ -67,7 +76,7 @@ for (const branch of tree) {
 
   await Promise.all(
     branch.map(async (release) => {
-      const published = await releasePackage(release, dry, tag);
+      const published = await releasePackage(release, dry, npm, tag);
       const identifier = `${release.name}@${release.version}`;
 
       if (published) {
