@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.2.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.1.0...@nanoforge-dev/actions@1.2.0) - (2026-03-12)
+
+## Features
+
+- Add conditionnal npm publish (#36) ([45cdd9d](https://github.com/NanoForge-dev/actions/commit/45cdd9d661210a80184a6964b9c2073ba5c5b0ac)) by @Exeloo
+- Add docs (#9) ([be56b16](https://github.com/NanoForge-dev/actions/commit/be56b164971786fe692e8025ff2f22dfe5ce1180)) by @Exeloo
+
+### New Contributors
+
+- @dependabot[bot] made their first contribution in #35
+- @renovate[bot] made their first contribution in #20
+
 # [@nanoforge-dev/actions@1.1.0](https://github.com/NanoForge-dev/actions/tree/@nanoforge-dev/actions@1.1.0) - (2026-01-19)
 
 ## Features
