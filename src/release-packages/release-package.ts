@@ -41,17 +41,20 @@ async function gitTagAndRelease(release: ReleaseEntry, dry: boolean) {
 export async function releasePackage(
   release: ReleaseEntry,
   dry: boolean,
+  doNpmRelease: boolean,
   devTag?: string,
   doGitRelease = !devTag,
 ) {
   // Sanity check against the registry first
-  if (await checkRegistry(release)) {
+  if (doNpmRelease && (await checkRegistry(release))) {
     info(`${release.name}@${release.version} already published, skipping.`);
     return false;
   }
 
   if (dry) {
     info(`[DRY] Releasing ${release.name}@${release.version}`);
+  } else if (!doNpmRelease) {
+    info(`Skipping npm releasing ${release.name}@${release.version}`);
   } else {
     await $`pnpm --filter=${release.name} publish --provenance --no-git-checks ${devTag ? `--tag=${devTag}` : ""}`;
   }
@@ -60,6 +63,8 @@ export async function releasePackage(
   if (doGitRelease && !devTag) await gitTagAndRelease(release, dry);
 
   if (dry) return true;
+
+  if (!doNpmRelease) return true;
 
   const before = performance.now();
 

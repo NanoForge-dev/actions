@@ -7,6 +7,9 @@ inputs:
   dry:
     description: "Perform a dry run that skips publishing and outputs logs indicating what would have happened"
     default: "false"
+  npm:
+    description: "Run npm registry release"
+    default: "true"
   package:
     description: "The published name of a single package to release"
   exclude:
@@ -22,6 +25,7 @@ runs:
       env:
         INPUT_DEV: ${{ inputs.dev }}
         INPUT_DRY: ${{ inputs.dry }}
+        INPUT_NPM: ${{ inputs.npm }}
         INPUT_PACKAGE: ${{ inputs.package }}
         INPUT_EXCLUDE: ${{ inputs.exclude }}
         INPUT_TAG: ${{ inputs.tag }}
