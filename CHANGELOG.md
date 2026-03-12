@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.2.1](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.2.0...@nanoforge-dev/actions@1.2.1) - (2026-03-12)
+
+## Bug Fixes
+
+- Add only version handling for changelog (#38) ([bdd1655](https://github.com/NanoForge-dev/actions/commit/bdd16550181717c7d782ddc95641145c87d15f00)) by @Exeloo
+
 # [@nanoforge-dev/actions@1.2.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.1.0...@nanoforge-dev/actions@1.2.0) - (2026-03-12)
 
 ## Features
