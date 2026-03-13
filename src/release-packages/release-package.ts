@@ -16,8 +16,12 @@ async function checkRegistry(release: ReleaseEntry) {
   return res.ok;
 }
 
-async function gitTagAndRelease(release: ReleaseEntry, dry: boolean) {
-  const tagName = `${release.name}@${release.version}`;
+async function gitTagAndRelease(release: ReleaseEntry, tagFormat: string, dry: boolean) {
+  const [org, pkg] = release.name.split("/");
+  const tagName = tagFormat
+    .replaceAll("{org}", org ?? "")
+    .replaceAll("{package}", pkg ?? org ?? "")
+    .replaceAll("{version}", release.version);
 
   if (dry) {
     info(`[DRY] Release would be "${tagName}", skipping release creation.`);
@@ -42,6 +46,7 @@ export async function releasePackage(
   release: ReleaseEntry,
   dry: boolean,
   doNpmRelease: boolean,
+  tagFormat: string,
   devTag?: string,
   doGitRelease = !devTag,
 ) {
@@ -60,7 +65,7 @@ export async function releasePackage(
   }
 
   // && !devTag just to be sure
-  if (doGitRelease && !devTag) await gitTagAndRelease(release, dry);
+  if (doGitRelease && !devTag) await gitTagAndRelease(release, tagFormat, dry);
 
   if (dry) return true;
 
