@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.2.3](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.2.2...@nanoforge-dev/actions@1.2.3) - (2026-03-13)
+
+## Features
+
+- Add tag format to release packages ci (#42) ([bea9f2e](https://github.com/NanoForge-dev/actions/commit/bea9f2e1fc48c8bcfb2cfe84c21f07d90c536eae)) by @Exeloo
+
 # [@nanoforge-dev/actions@1.2.2](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.2.1...@nanoforge-dev/actions@1.2.2) - (2026-03-13)
 
 ## Features
