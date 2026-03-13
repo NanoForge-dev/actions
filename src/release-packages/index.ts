@@ -44,6 +44,7 @@ program
   .option("--dev", "publishes development versions and skips tagging / github releases", devInput)
   .option("--npm", "release packages on npm registry", npmInput)
   .option("--tag <tag>", 'tag to use for dev releases (defaults to "dev")', getInput("tag"))
+  .option("--format <format>", "format of the tag", getInput("format"))
   .parse();
 
 const {
@@ -52,7 +53,15 @@ const {
   dev,
   npm,
   tag: inputTag,
-} = program.opts<{ dev: boolean; dry: boolean; npm: boolean; exclude: string[]; tag: string }>();
+  format: tagFormat,
+} = program.opts<{
+  dev: boolean;
+  dry: boolean;
+  npm: boolean;
+  exclude: string[];
+  tag: string;
+  format: string;
+}>();
 
 // All this because getInput('tag') will return empty string when not set :P
 if (!dev && inputTag.length) {
@@ -76,7 +85,7 @@ for (const branch of tree) {
 
   await Promise.all(
     branch.map(async (release) => {
-      const published = await releasePackage(release, dry, npm, tag);
+      const published = await releasePackage(release, dry, npm, tagFormat, tag);
       const identifier = `${release.name}@${release.version}`;
 
       if (published) {
