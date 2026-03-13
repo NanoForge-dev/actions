@@ -5,6 +5,9 @@ inputs:
     description: "Commit sha to put the tag on"
   branch:
     description: "Head branch name"
+  format:
+    description: "Tag format"
+    default: "{org}/{package}@{version}"
 runs:
   using: composite
   steps:
@@ -14,3 +17,4 @@ runs:
       env:
         INPUT_COMMIT: ${{ inputs.commit }}
         INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_FORMAT: ${{ inputs.format }}

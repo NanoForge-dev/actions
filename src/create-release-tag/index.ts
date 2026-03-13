@@ -13,17 +13,30 @@ const bootstrap = async () => {
   program
     .name("create release tag")
     .description("create release tag for monorepo packages with proper sequencing")
-    .option("--commit <commit>", "commit sha of ythe last commit", getInput("commit"))
+    .option("--commit <commit>", "commit sha of the last commit", getInput("commit"))
     .option("--branch <branch>", "head branch of the merged pr", getInput("branch"))
+    .option("--format <format>", "format of the tag", getInput("format"))
     .parse();
 
-  const { commit, branch } = program.opts<{ commit: string; branch: string }>();
+  const { commit, branch, format } = program.opts<{
+    commit: string;
+    branch: string;
+    format: string;
+  }>();
 
-  const pkg = branch.replace("releases/", "@nanoforge-dev/");
+  const org = "@nanoforge-dev";
+  const [pkg, version] = branch.replace("releases/", "").split("@");
+
+  if (!pkg || !version) throw new Error("Invalid branch name");
+
+  const tag = format
+    .replaceAll("{org}", org)
+    .replaceAll("{package}", pkg)
+    .replaceAll("{version}", version);
 
   await octokit?.rest.git.createRef({
     ...context.repo,
-    ref: `refs/tags/${pkg}`,
+    ref: `refs/tags/${tag}`,
     sha: commit,
   });
 };
