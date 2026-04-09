@@ -18,11 +18,11 @@
 
 `@nanoforge-dev/actions` is library that contains all utils for nanoforge actions.
 
-Most of the sources of this package come from [discord.js][discordjs-source]. Spetial thanks to them !
+Most of the sources of this package come from [discord.js][discordjs-source]. Special thanks to them!
 
 ## Installation
 
-**Node.js 24.11.0 or newer is required.**
+**Node.js 25 or newer is required.**
 
 ```sh
 npm install --save-dev @nanoforge-dev/actions

@@ -94,6 +94,72 @@ Functions
    :param release: Release entry with changelog
    :param dry: If true, logs instead of creating release
 
+release-nanoforge-packages: generate-release-tree
+-------------------------------------------------
+
+**Module**: ``src/release-nanoforge-packages/generate-release-tree.ts``
+
+Builds a dependency-ordered release tree for NanoForge packages discovered
+via ``nanoforge.manifest.json`` manifests.
+
+Types
+^^^^^
+
+.. code-block:: typescript
+
+    interface ReleaseEntry {
+      name: string;           // Package name from manifest
+      path: string;           // Absolute path to the package directory
+      dependsOn?: string[];   // Names of packages that must be released first
+    }
+
+Functions
+^^^^^^^^^
+
+.. function:: generateReleaseTree(path: string, packageName?: string, exclude?: string[]): Promise<ReleaseEntry[][]>
+
+   Generates a two-dimensional array of release entries ordered by dependency
+   level. Each inner array can be released in parallel.
+
+   :param path: Root directory to scan for ``nanoforge.manifest.json`` files
+   :param packageName: Target a specific package (with its deps) or ``"all"``
+   :param exclude: Package names to skip (unless required by another package)
+   :returns: Promise resolving to ordered release tree
+   :raises Error: If a named package is not found, or a dependency cycle exists
+
+   **Algorithm**:
+
+   1. Recursively scans ``path`` for ``nanoforge.manifest.json`` files
+   2. Builds dependency graph from manifest ``dependencies`` fields
+   3. Topologically sorts into release levels (BFS)
+   4. Prunes tree based on ``packageName`` or ``exclude`` options
+
+release-nanoforge-packages: release-package
+--------------------------------------------
+
+**Module**: ``src/release-nanoforge-packages/release-package.ts``
+
+Handles publishing individual NanoForge packages via the ``nf publish`` CLI.
+
+Functions
+^^^^^^^^^
+
+.. function:: releasePackage(release: ReleaseEntry, dry: boolean): Promise<boolean>
+
+   Publishes a single NanoForge package.
+
+   :param release: Release entry with name and path
+   :param dry: If true, logs instead of publishing
+   :returns: Promise resolving to ``true`` when done
+
+   **Behavior**:
+
+   1. In dry mode: logs the action and returns immediately
+   2. Runs ``bun exec "nf publish -d <path>"``
+   3. Polls ``api.nanoforge.eu/registry/<name>`` every 15 s (up to 5 min) to
+      confirm the package is available on the registry before returning
+   :raises Error: If the registry does not confirm the package within 5 minutes
+
 create-release-pr Functions
 ---------------------------
 

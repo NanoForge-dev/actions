@@ -5,7 +5,7 @@ Overview
 --------
 
 NanoForge Actions is a collection of GitHub Actions designed to automate the
-release workflow for NanoForge monorepo packages. It provides three main actions
+release workflow for NanoForge monorepo packages. It provides four main actions
 that handle different stages of the release process:
 
 1. **create-release-pr** -- Creates a release pull request with version bumps
@@ -13,6 +13,8 @@ that handle different stages of the release process:
 2. **release-packages** -- Publishes packages to npm with proper dependency
    sequencing
 3. **create-release-tag** -- Creates git tags after a release PR is merged
+4. **release-nanoforge-packages** -- Publishes NanoForge components and systems
+   to the private NanoForge registry
 
 The package is published to npm as ``@nanoforge-dev/actions`` and is built
 using tsup with ESM output.
@@ -59,12 +61,17 @@ Project Structure
     |   +-- index.ts                    # Entry point
     |   +-- functions.ts                # Core functions
     |   +-- types.ts                    # Type definitions
-    +-- release-packages/               # Package publishing action
+    +-- release-packages/               # npm package publishing action
     |   +-- index.ts                    # Entry point
     |   +-- generate-release-tree.ts    # Dependency tree generation
     |   +-- release-package.ts          # Individual package release
     +-- create-release-tag/             # Tag creation action
+    |   +-- index.ts                    # Entry point
+    +-- release-nanoforge-packages/     # NanoForge registry publishing action
         +-- index.ts                    # Entry point
+        +-- generate-release-tree.ts    # Manifest-based dependency tree
+        +-- release-package.ts          # Individual NanoForge package release
+        +-- action.yml                  # Action definition
 
 Action Pattern
 --------------
