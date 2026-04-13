@@ -1,0 +1,24 @@
+name: "Release Nanoforge Packages"
+description: "Releases any nanoforge component or system"
+inputs:
+  dry:
+    description: "Perform a dry run that skips publishing and outputs logs indicating what would have happened"
+    default: "false"
+  path:
+    description: "Path to the packages directory"
+    default: "packages"
+  package:
+    description: "The published name of a single package to release"
+  exclude:
+    description: "Comma separated list of packages to exclude from release (if not depended upon)"
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+    - run: bun $GITHUB_ACTION_PATH/index.js
+      shell: bash
+      env:
+        INPUT_DRY: ${{ inputs.dry }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_PACKAGE: ${{ inputs.package }}
+        INPUT_EXCLUDE: ${{ inputs.exclude }}

@@ -71,4 +71,5 @@ export default [
   createConfig("create-release-pr", ["index.ts"]),
   createConfig("create-release-tag", ["index.ts"]),
   createConfig("release-packages", ["index.ts"]),
+  createConfig("release-nanoforge-packages", ["index.ts"]),
 ];

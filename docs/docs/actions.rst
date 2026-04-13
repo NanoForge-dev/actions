@@ -46,11 +46,21 @@ Inputs
      - No
      - ``false``
      - Publish development versions with commit hash suffix
+   * - ``npm``
+     - boolean
+     - No
+     - ``true``
+     - Publish to the npm registry
    * - ``tag``
      - string
      - No
      - ``"dev"``
      - npm dist-tag for dev releases (only valid with ``dev: true``)
+   * - ``format``
+     - string
+     - No
+     - ``{org}/{package}@{version}``
+     - Tag format string (placeholders: ``{org}``, ``{package}``, ``{version}``)
 
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
@@ -227,6 +237,11 @@ Inputs
      - Yes
      - --
      - Head branch of the merged PR (e.g., ``releases/actions@1.1.0``)
+   * - ``format``
+     - string
+     - No
+     - ``{org}/{package}@{version}``
+     - Tag format string (placeholders: ``{org}``, ``{package}``, ``{version}``)
 
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
@@ -251,9 +266,13 @@ Behavior
 Tag Format
 ^^^^^^^^^^
 
-Tags follow the npm package identifier format::
+Tags are produced by substituting placeholders in the ``format`` input::
 
-    @nanoforge-dev/<package>@<version>
+    {org}/{package}@{version}
+
+For example, with the default format and branch ``releases/actions@1.1.0``::
+
+    @nanoforge-dev/actions@1.1.0
 
 Example Usage
 ^^^^^^^^^^^^^
@@ -265,6 +284,100 @@ Example Usage
       with:
         commit: ${{ github.sha }}
         branch: ${{ github.head_ref }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+----
+
+.. _action-release-nanoforge-packages:
+
+release-nanoforge-packages
+--------------------------
+
+Releases NanoForge components and systems to the NanoForge private registry
+(``api.nanoforge.eu``). Discovers packages via ``nanoforge.manifest.json``
+files and resolves publish order from their declared dependencies.
+
+**Entry Point**: ``src/release-nanoforge-packages/index.ts``
+
+Inputs
+^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 10 10 15 47
+
+   * - Input
+     - Type
+     - Required
+     - Default
+     - Description
+   * - ``path``
+     - string
+     - No
+     - ``packages``
+     - Path to the packages directory
+   * - ``package``
+     - string
+     - No
+     - ``"all"``
+     - Specific package to release (with dependencies), or ``"all"``
+   * - ``exclude``
+     - string
+     - No
+     - ``""``
+     - Comma-separated list of packages to skip (unless required by another package)
+   * - ``dry``
+     - boolean
+     - No
+     - ``false``
+     - Perform a dry run without actual publishing
+
+Environment Variables
+^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Variable
+     - Description
+   * - ``GITHUB_TOKEN``
+     - GitHub token (required for job summary writing)
+
+Behavior
+^^^^^^^^
+
+1. Recursively scans the ``path`` directory for ``nanoforge.manifest.json`` files
+2. Builds a dependency tree from ``dependencies`` fields in each manifest
+3. Releases packages in topological order; independent packages are released
+   in parallel within each level
+4. After each publish, polls ``api.nanoforge.eu/registry/<name>`` every 15 s
+   (up to 5 min) to confirm the package is available before proceeding
+5. Generates a job summary listing released and skipped packages
+
+Manifest Format
+^^^^^^^^^^^^^^^
+
+Each package must have a ``nanoforge.manifest.json`` at its root:
+
+.. code-block:: json
+
+    {
+      "name": "@nanoforge-dev/my-package",
+      "dependencies": ["@nanoforge-dev/other-package"]
+    }
+
+Example Usage
+^^^^^^^^^^^^^
+
+.. code-block:: yaml
+
+    - name: Release NanoForge packages
+      uses: ./dist/release-nanoforge-packages
+      with:
+        path: packages
+        dry: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
