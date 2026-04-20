@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.3.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.2.3...@nanoforge-dev/actions@1.3.0) - (2026-04-20)
+
+## Features
+
+- Add release nanoforge packages action (#45) ([c4001f0](https://github.com/NanoForge-dev/actions/commit/c4001f0f9a6c7545afd54c982dbfe76d1fc126ea)) by @Exeloo
+
 # [@nanoforge-dev/actions@1.2.3](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.2.2...@nanoforge-dev/actions@1.2.3) - (2026-03-13)
 
 ## Features
