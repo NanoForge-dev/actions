@@ -33,7 +33,7 @@
   },
   "funding": "https://github.com/NanoForge-dev/actions?sponsor",
   "scripts": {
-    "build": "tsc --noEmit && tsup",
+    "build": "tsc --noEmit && tsdown",
     "lint": "prettier --check . && eslint --format=pretty src",
     "format": "prettier --write . && eslint --fix --format=pretty src",
     "prepack": "pnpm run build && pnpm run lint",
@@ -60,7 +60,7 @@
     "lint-staged": "catalog:ci",
     "prettier": "catalog:lint",
     "terser": "catalog:build",
-    "tsup": "catalog:build",
+    "tsdown": "catalog:build",
     "typescript": "catalog:build"
   },
   "packageManager": "pnpm@10.28.2",
