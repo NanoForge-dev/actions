@@ -4,7 +4,7 @@ catalogs:
     '@actions/github': ^9.1.1
   build:
     terser: ^5.46.1
-    tsdown: ^0.21.9
+    tsdown: ^0.22.0
     typescript: ^6.0.3
   ci:
     '@commitlint/cli': ^20.5.0
