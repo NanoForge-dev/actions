@@ -1,0 +1,58 @@
+name: Synchronize documentation
+description: "Synchronize documentation from the package repository to the documentation repository"
+inputs:
+  source-docs:
+    description: "Directory to get documentation from"
+  destination-docs:
+    description: "Directory to put documentation to"
+  source-guides:
+    description: "Directory to get guides from"
+    default: "none"
+  destination-guides:
+    description: "Directory to put guides to"
+    default: "none"
+  repository:
+    description: "Repository to synchronize documentation to"
+  config:
+    description: "Configuration file to use for synchronization"
+  token:
+    description: "GitHub token to use for authentication"
+  commit-message:
+    description: "Commit message to use for documentation updates"
+runs:
+  using: composite
+  steps:
+    - name: Checkout documentation repository
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.repository }}
+        token: ${{ inputs.token }}
+        path: docs-repo
+
+    - name: setup git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "username@users.noreply.github.com"
+      shell: bash
+
+    - name: Synchronize documentation
+      run: |
+        echo "Synchronizing documentation from ${{ inputs.source-docs }} to ${{ inputs.destination-docs }}"
+        rsync -av --delete ${{ inputs.source-docs }}/ docs-repo/{{ inputs.destination-docs }}/
+        if [ "${{ inputs.source-guides }}" != "none" ] && [ "${{ inputs.destination-guides }}" != "none" ]; then
+          echo "Synchronizing guides from ${{ inputs.source-guides }} to ${{ inputs.destination-guides }}"
+          rsync -av --delete ${{ inputs.source-guides }}/ docs-repo/{{ inputs.destination-guides }}/
+        fi
+
+        cd docs-repo
+
+        echo "Updating docs.json with new documentation and guides"
+        jq --slurpfile config ${{ inputs.config }} ' ($config[0].documentation) as $new | if $new then (.navigation.languages[0].tabs[] | select(.tab == "Documentation")) |= (if (.groups | any(.group == $new.group)) then .groups |= map(if .group == $new.group then .pages = $new.pages else . end) else .groups += [$new] end ) else . end ' docs.json > docs.tmp.json
+        jq --slurpfile config ${{ inputs.config }} ' ($config[0].guides) as $new | if $new then (.navigation.languages[0].tabs[] | select(.tab == "Guides")) |= (if (.groups | any(.group == $new.group)) then .groups |= map(if .group == $new.group then .pages = $new.pages else . end) else .groups += [$new] end ) else . end ' docs.tmp.json > docs.json
+        rm docs.tmp.json
+
+        # Commit and push changes
+        git add . || echo "No changes to add"
+        git commit -m "${{ inputs.commit-message }}" || echo "No changes to commit"
+        git push origin main || echo "No changes to push"
+      shell: bash
