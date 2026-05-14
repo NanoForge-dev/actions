@@ -18,7 +18,8 @@
     "Tchips <leo.outmizguine@epitech.eu>"
   ],
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "exports": {
     "./package.json": "./package.json"
@@ -33,7 +34,7 @@
   },
   "funding": "https://github.com/NanoForge-dev/actions?sponsor",
   "scripts": {
-    "build": "tsc --noEmit && tsdown",
+    "build": "tsc --noEmit && tsdown && mkdir -p dist/synchronize-docs && cp src/synchronize-docs/action.yml dist/synchronize-docs/action.yml",
     "lint": "prettier --check . && eslint --format=pretty src",
     "format": "prettier --write . && eslint --fix --format=pretty src",
     "prepack": "pnpm run build && pnpm run lint",
