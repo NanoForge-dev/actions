@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.4.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.3.0...@nanoforge-dev/actions@1.4.0) - (2026-05-14)
+
+## Features
+
+- Create a docs synchronization action to streamline the process (#53) ([860f949](https://github.com/NanoForge-dev/actions/commit/860f949afeadb345310cc7f0133afc888560174c)) by @MartinFillon
+
+### New Contributors
+
+- @MartinFillon made their first contribution in #53
+
 # [@nanoforge-dev/actions@1.3.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.2.3...@nanoforge-dev/actions@1.3.0) - (2026-04-20)
 
 ## Features
