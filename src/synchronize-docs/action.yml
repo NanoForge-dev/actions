@@ -38,10 +38,10 @@ runs:
     - name: Synchronize documentation
       run: |
         echo "Synchronizing documentation from ${{ inputs.source-docs }} to ${{ inputs.destination-docs }}"
-        rsync -av --delete ${{ inputs.source-docs }}/ docs-repo/{{ inputs.destination-docs }}/
+        rsync -av --delete ${{ inputs.source-docs }}/ docs-repo/${{ inputs.destination-docs }}/
         if [ "${{ inputs.source-guides }}" != "none" ] && [ "${{ inputs.destination-guides }}" != "none" ]; then
           echo "Synchronizing guides from ${{ inputs.source-guides }} to ${{ inputs.destination-guides }}"
-          rsync -av --delete ${{ inputs.source-guides }}/ docs-repo/{{ inputs.destination-guides }}/
+          rsync -av --delete ${{ inputs.source-guides }}/ docs-repo/${{ inputs.destination-guides }}/
         fi
 
         cd docs-repo
