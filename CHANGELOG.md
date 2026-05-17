@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.4.2](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.4.1...@nanoforge-dev/actions@1.4.2) - (2026-05-17)
+
+## Bug Fixes
+
+- Change directory where jq is executed (#60) ([cd64002](https://github.com/NanoForge-dev/actions/commit/cd6400233c82629de7102afe1237e66936f567be)) by @MartinFillon
+
 # [@nanoforge-dev/actions@1.4.1](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.4.0...@nanoforge-dev/actions@1.4.1) - (2026-05-17)
 
 ## Bug Fixes
