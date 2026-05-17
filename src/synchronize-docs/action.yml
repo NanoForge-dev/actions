@@ -44,13 +44,13 @@ runs:
           rsync -av --delete ${{ inputs.source-guides }}/ docs-repo/${{ inputs.destination-guides }}/
         fi
 
-        cd docs-repo
 
         echo "Updating docs.json with new documentation and guides"
-        jq --slurpfile config ${{ inputs.config }} ' ($config[0].documentation) as $new | if $new then (.navigation.languages[0].tabs[] | select(.tab == "Documentation")) |= (if (.groups | any(.group == $new.group)) then .groups |= map(if .group == $new.group then .pages = $new.pages else . end) else .groups += [$new] end ) else . end ' docs.json > docs.tmp.json
-        jq --slurpfile config ${{ inputs.config }} ' ($config[0].guides) as $new | if $new then (.navigation.languages[0].tabs[] | select(.tab == "Guides")) |= (if (.groups | any(.group == $new.group)) then .groups |= map(if .group == $new.group then .pages = $new.pages else . end) else .groups += [$new] end ) else . end ' docs.tmp.json > docs.json
+        jq --slurpfile config ${{ inputs.config }} ' ($config[0].documentation) as $new | if $new then (.navigation.languages[0].tabs[] | select(.tab == "Documentation")) |= (if (.groups | any(.group == $new.group)) then .groups |= map(if .group == $new.group then .pages = $new.pages else . end) else .groups += [$new] end ) else . end ' docs-repo/docs.json > docs.tmp.json
+        jq --slurpfile config ${{ inputs.config }} ' ($config[0].guides) as $new | if $new then (.navigation.languages[0].tabs[] | select(.tab == "Guides")) |= (if (.groups | any(.group == $new.group)) then .groups |= map(if .group == $new.group then .pages = $new.pages else . end) else .groups += [$new] end ) else . end ' docs.tmp.json > docs-repo/docs.json
         rm docs.tmp.json
 
+        cd docs-repo
         # Commit and push changes
         git add . || echo "No changes to add"
         git commit -m "${{ inputs.commit-message }}" || echo "No changes to commit"
