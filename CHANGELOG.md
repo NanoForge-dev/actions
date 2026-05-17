@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@1.4.1](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.4.0...@nanoforge-dev/actions@1.4.1) - (2026-05-17)
+
+## Bug Fixes
+
+- **synchronize-docs:** Missing $ in inputs getting (#58) ([24c31f9](https://github.com/NanoForge-dev/actions/commit/24c31f938c032e12ee6eb165474fe26e3f67483e)) by @MartinFillon
+
 # [@nanoforge-dev/actions@1.4.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.3.0...@nanoforge-dev/actions@1.4.0) - (2026-05-17)
 
 ## Bug Fixes
