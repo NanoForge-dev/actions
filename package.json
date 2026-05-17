@@ -18,7 +18,8 @@
     "Tchips <leo.outmizguine@epitech.eu>"
   ],
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "exports": {
     "./package.json": "./package.json"
