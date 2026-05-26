@@ -66,9 +66,14 @@ const writeSummary = async (
   await result.write();
 };
 
+const DEFAULT_BRANCHES = new Set(["main", "master"]);
+
 const bootstrap = async () => {
   const { dry, package: pkgName, tag } = parseOptions();
   if (!pkgName) throw new Error("No package specified");
+
+  const branch = process.env.GITHUB_REF_NAME ?? "";
+  const isDefaultBranch = DEFAULT_BRANCHES.has(branch);
 
   const pkg = await resolvePackage(pkgName);
   const existingVersions = await fetchDevVersions(pkgName, tag);
@@ -77,15 +82,17 @@ const bootstrap = async () => {
   info(`Resolved next ${tag}: ${pkgName}@${newVersion}`);
   if (toDeprecate.length)
     info(`Found ${toDeprecate.length} existing ${tag}(s) — older ones will be deprecated`);
+  if (isDefaultBranch) info(`Running on default branch — version bump will not be committed`);
 
   await updateVersion(pkg.path, newVersion);
 
   if (dry) {
+    const commitNote = isDefaultBranch ? "skip commit (default branch)" : `commit and push`;
     info(
-      `[DRY] Would commit, push, publish ${pkgName}@${newVersion}, and deprecate: ${toDeprecate.join(", ") || "none"}`,
+      `[DRY] Would ${commitNote}, publish ${pkgName}@${newVersion}, and deprecate: ${toDeprecate.join(", ") || "none"}`,
     );
   } else {
-    await commitAndPush(pkgName, newVersion, tag);
+    if (!isDefaultBranch) await commitAndPush(pkgName, newVersion, tag);
     await publishDev(pkgName, newVersion, tag, dry);
     await deprecateOldDevVersions(pkgName, toDeprecate, newVersion, dry);
   }
