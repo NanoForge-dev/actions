@@ -1,21 +1,20 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: Perform a dry run?
-        type: boolean
-        default: false
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
-  npm-publish:
-    name: npm publish
+  release:
+    name: Release
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev'
+    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -24,10 +23,31 @@ jobs:
         uses: ./.github/actions/prepare
 
       - name: Release packages
-        uses: ./dist/release-packages
+        uses: ./actions/release-packages
+        with:
+          packages: "@nanoforge-dev/actions"
+          tag-format: "{version}"
+          latest: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  beta-release:
+    name: Beta release
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && !startsWith(github.head_ref, 'releases/')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Prepare
+        uses: ./.github/actions/prepare
+
+      - name: Release beta
+        uses: ./actions/release-dev
         with:
           package: "@nanoforge-dev/actions"
-          dry: ${{ inputs.dry_run }}
+          tag: beta
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

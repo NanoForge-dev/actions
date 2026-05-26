@@ -45,7 +45,8 @@
   "dependencies": {
     "@actions/core": "catalog:actions",
     "@actions/github": "catalog:actions",
-    "commander": "catalog:core"
+    "commander": "catalog:core",
+    "semver": "catalog:core"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:ci",
@@ -56,6 +57,7 @@
     "@npm/types": "catalog:core",
     "@trivago/prettier-plugin-sort-imports": "catalog:lint",
     "@types/bun": "catalog:core",
+    "@types/semver": "catalog:core",
     "eslint": "catalog:lint",
     "husky": "catalog:ci",
     "lint-staged": "catalog:ci",
@@ -64,7 +66,7 @@
     "tsdown": "catalog:build",
     "typescript": "catalog:build"
   },
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@11.3.0",
   "engines": {
     "node": "25"
   },
