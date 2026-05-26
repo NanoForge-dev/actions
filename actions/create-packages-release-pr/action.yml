@@ -1,0 +1,30 @@
+name: "Create Packages Release PR"
+description: "Create a PR releasing multiple packages at a shared version"
+inputs:
+  packages:
+    description: "Comma-separated list of package names to release"
+    required: true
+  version:
+    description: "Version to release all packages at"
+    required: true
+  branch-format:
+    description: "Branch name format. Tokens: {org}, {package} (single package only), {version}"
+    default: "releases/{package}@{version}"
+  commit-format:
+    description: "Commit message format. Tokens: {org}, {package} (single package only), {version}"
+    default: "chore({package}): release {org}/{package}@{version}"
+  dry:
+    description: "Perform a dry run that skips PR creation and outputs logs indicating what would have happened"
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+    - run: bun $GITHUB_ACTION_PATH/index.ts
+      shell: bash
+      env:
+        INPUT_DRY: ${{ inputs.dry }}
+        INPUT_PACKAGES: ${{ inputs.packages }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_BRANCH_FORMAT: ${{ inputs.branch-format }}
+        INPUT_COMMIT_FORMAT: ${{ inputs.commit-format }}

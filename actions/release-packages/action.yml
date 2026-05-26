@@ -1,0 +1,38 @@
+name: "Release Packages"
+description: "Publishes packages and creates a tagged GitHub release after a packages release PR is merged"
+inputs:
+  packages:
+    description: "Comma-separated list of package names to release"
+    required: true
+  version:
+    description: "Version being released. Resolved from the packages' package.json if not provided"
+    required: false
+  tag-format:
+    description: "Git tag format. Tokens: {org}, {package} (single package only), {version}"
+    default: "{org}/{package}@{version}"
+  npm:
+    description: "Publish packages to npm registry"
+    default: "true"
+  github-release:
+    description: "Create a GitHub release. Uses the package changelog for a single package, the aggregate root changelog for multiple"
+    default: "true"
+  latest:
+    description: "Mark the GitHub release as the latest release"
+    default: "true"
+  dry:
+    description: "Perform a dry run that skips publishing and tag creation"
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+    - run: bun $GITHUB_ACTION_PATH/index.ts
+      shell: bash
+      env:
+        INPUT_DRY: ${{ inputs.dry }}
+        INPUT_PACKAGES: ${{ inputs.packages }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TAG_FORMAT: ${{ inputs.tag-format }}
+        INPUT_NPM: ${{ inputs.npm }}
+        INPUT_GITHUB_RELEASE: ${{ inputs.github-release }}
+        INPUT_LATEST: ${{ inputs.latest }}
