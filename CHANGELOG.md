@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+# [@nanoforge-dev/actions@2.0.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.4.2...@nanoforge-dev/actions@2.0.0) - (2026-05-26)
+
+## Bug Fixes
+
+- **release-dev:** Remove the push of version in main branch (#68) ([97f50f4](https://github.com/NanoForge-dev/actions/commit/97f50f4a57202b0ea0bd92b2c0183736a79cfc8f)) by @Exeloo
+
+## Features
+
+- Add new release actions (#67) ([8aa1b46](https://github.com/NanoForge-dev/actions/commit/8aa1b461aff81df28cb27a3f01b22b7612543375)) by @Exeloo
+
 # [@nanoforge-dev/actions@1.4.2](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.4.1...@nanoforge-dev/actions@1.4.2) - (2026-05-17)
 
 ## Bug Fixes
