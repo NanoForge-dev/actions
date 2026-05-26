@@ -19,6 +19,7 @@
   ],
   "files": [
     "actions",
+    "lib",
     "dist",
     "src"
   ],
