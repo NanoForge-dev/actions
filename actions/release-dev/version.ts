@@ -42,7 +42,10 @@ export const resolveAlphaRelease = (
   const branchSlug = sanitizeBranch(branchName);
   const prefix = `${nextBase}-alpha.${branchSlug}.`;
 
-  const branchAlphas = existingAlphas.filter((v) => v.startsWith(prefix));
+  const seen = new Set([...existingAlphas.filter((v) => v.startsWith(prefix))]);
+  if (currentVersion.startsWith(prefix)) seen.add(currentVersion);
+  const branchAlphas = [...seen];
+
   const maxN = branchAlphas.reduce((max, v) => {
     const n = parseInt(v.slice(prefix.length), 10);
     return isNaN(n) ? max : Math.max(max, n);
