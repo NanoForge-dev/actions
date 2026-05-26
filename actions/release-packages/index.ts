@@ -1,13 +1,13 @@
 import { endGroup, getInput, startGroup, summary } from "@actions/core";
 import { program } from "commander";
+
 import {
   extractTokens,
   formatString,
   readRootChangelog,
   resolveRootPath,
   safeGetBooleanInput,
-} from "lib";
-
+} from "../../lib";
 import { type ReleaseEntry, generateReleaseTree } from "./generate-release-tree";
 import { createGitHubRelease, createTag } from "./github";
 import { publishToNpm } from "./npm";

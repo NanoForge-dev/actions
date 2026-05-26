@@ -1,6 +1,7 @@
 import { info, warning } from "@actions/core";
 import { context } from "@actions/github";
-import { createOctokit } from "lib";
+
+import { createOctokit } from "../../lib";
 
 const octokit = createOctokit();
 

@@ -1,5 +1,6 @@
 import { getInput, info, summary } from "@actions/core";
 import { program } from "commander";
+
 import {
   type IPkg,
   extractTokens,
@@ -8,8 +9,7 @@ import {
   resolveRootPath,
   safeGetBooleanInput,
   updateVersion,
-} from "lib";
-
+} from "../../lib";
 import { runPackageChangelog, updateRootChangelog } from "./changelog";
 import { checkoutToReleaseBranch, commitAndPush } from "./git";
 import { createPR } from "./github";

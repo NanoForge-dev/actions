@@ -44,10 +44,7 @@
     "types": ["bun"],
     "target": "ESNext",
     "experimentalDecorators": true,
-    "useDefineForClassFields": true,
-    "paths": {
-      "lib": ["./lib"]
-    }
+    "useDefineForClassFields": true
   },
   "include": ["src/**/*.ts", "actions/**/*.ts", "lib/**/*.ts"],
   "exclude": ["node_modules", "dist"]
