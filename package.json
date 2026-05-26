@@ -18,6 +18,7 @@
     "Tchips <leo.outmizguine@epitech.eu>"
   ],
   "files": [
+    "actions",
     "dist",
     "src"
   ],
