@@ -1,8 +1,8 @@
 import { getInput, info, summary } from "@actions/core";
 import { program } from "commander";
-import { resolvePackage, safeGetBooleanInput, updateVersion } from "lib";
 import process from "node:process";
 
+import { resolvePackage, safeGetBooleanInput, updateVersion } from "../../lib";
 import { commitAndPush } from "./git";
 import { deprecateOldDevVersions, publishDev } from "./npm";
 import { fetchDevVersions, resolveAlphaRelease, resolveBetaRelease } from "./version";

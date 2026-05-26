@@ -1,5 +1,6 @@
 import { $ } from "bun";
-import { readPackageChangelog } from "lib";
+
+import { readPackageChangelog } from "../../lib";
 
 interface PnpmTreeDependency {
   from: string;

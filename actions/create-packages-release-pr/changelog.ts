@@ -1,6 +1,7 @@
 import { $, file, write } from "bun";
-import { type IPkg, readPackageChangelog } from "lib";
 import { join } from "path";
+
+import { type IPkg, readPackageChangelog } from "../../lib";
 
 export const runPackageChangelog = async (name: string): Promise<void> => {
   await $`pnpm --filter=${name} run release --skip-automatic-bump --skip-tag`;
