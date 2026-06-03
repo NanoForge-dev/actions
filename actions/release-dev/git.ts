@@ -9,6 +9,6 @@ export const commitAndPush = async (
   const message = `chore(${shortName}): release ${tag} ${version}`;
 
   await $`git add --all`;
-  await $`git -c user.name='github-actions[bot]' -c user.email='username@users.noreply.github.com' commit -m ${message}`;
+  await $`git -c user.name='github-actions[bot]' -c user.email='username@users.noreply.github.com' commit -m '${message}'`;
   await $`git push`;
 };

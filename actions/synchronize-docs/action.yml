@@ -1,0 +1,30 @@
+name: "Synchronize docs"
+description: "Synchronize docs for a repository"
+inputs:
+  src-path:
+    description: "Path to the repository directory"
+    required: true
+  docs-path:
+    description: "Path to the docs repository directory"
+    default: "docs"
+  category:
+    description: "Category of the repository (bases are `engine`, `cli` and `editor`)"
+    required: true
+  references:
+    description: "Generate references"
+    default: "false"
+  references-path:
+    description: "Path to the references directory from src-path. Defaults to `references` (required if reference is true)"
+    default: "references"
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+    - run: bun $GITHUB_ACTION_PATH/index.ts
+      shell: bash
+      env:
+        INPUT_SRC_PATH: ${{ inputs.src-path }}
+        INPUT_DOCS_PATH: ${{ inputs.docs-path }}
+        INPUT_CATEGORY: ${{ inputs.category }}
+        INPUT_REFERENCES: ${{ inputs.references }}
+        INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
