@@ -3,7 +3,7 @@ description: "Synchronize docs for a repository"
 inputs:
   src-path:
     description: "Path to the repository directory"
-    required: true
+    default: "src"
   docs-path:
     description: "Path to the docs repository directory"
     default: "docs"
