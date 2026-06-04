@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.1.3](https://github.com/NanoForge-dev/actions/compare/2.1.2...2.1.3) - (2026-06-04)
+
+## Bug Fixes
+
+- Add fetch tags to sync docs (#80) ([5845972](https://github.com/NanoForge-dev/actions/commit/584597285285b70cd92b603eaddac54e6ace4ef9)) by @Exeloo
+
 # [2.1.2](https://github.com/NanoForge-dev/actions/compare/2.1.1...2.1.2) - (2026-06-04)
 
 ## Bug Fixes
