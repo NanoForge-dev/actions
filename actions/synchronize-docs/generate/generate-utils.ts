@@ -28,6 +28,7 @@ export const generateBasePage = (name: string, path: string): IPage | undefined 
 
 const formatName = (name: string) => {
   if (name.toLowerCase() === "ecs") return "ECS";
+  if (name.toLowerCase() === "cli") return "CLI";
   return capitalize(name);
 };
 
