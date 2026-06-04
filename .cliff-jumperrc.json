@@ -3,5 +3,6 @@
   "name": "actions",
   "org": "nanoforge-dev",
   "packagePath": ".",
+  "tagTemplate": "{{new-version}}",
   "identifierBase": false
 }
