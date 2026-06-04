@@ -3,10 +3,10 @@ description: "Synchronize docs for a repository"
 inputs:
   src-path:
     description: "Path to the repository directory"
-    default: "src"
+    default: "."
   docs-path:
     description: "Path to the docs repository directory"
-    default: "docs"
+    default: "docs-dist"
   category:
     description: "Category of the repository (bases are `engine`, `cli` and `editor`)"
     required: true
