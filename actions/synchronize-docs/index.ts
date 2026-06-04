@@ -16,6 +16,11 @@ const parseOptions = () => {
     .option("--src-path <path>", "path of repository containing the src docs", getInput("src_path"))
     .option("--docs-path <path>", "path of repository containing the docs", getInput("docs_path"))
     .option(
+      "--repository <name>",
+      "name of the repository for commit message",
+      getInput("repository"),
+    )
+    .option(
       "--references-path <path>",
       "path to the references directory from src-path. Defaults to `references` (required if reference is true)",
       safeGetStringInput("references_path", "references"),
@@ -31,6 +36,7 @@ const parseOptions = () => {
   return program.opts<{
     srcPath: string;
     docsPath: string;
+    repository: string;
     referencesPath: string;
     category: string;
     references: boolean;
@@ -38,7 +44,7 @@ const parseOptions = () => {
 };
 
 const bootstrap = async () => {
-  const { srcPath, docsPath, referencesPath, category, references } = parseOptions();
+  const { srcPath, docsPath, repository, referencesPath, category, references } = parseOptions();
 
   copyDocs(join(srcPath, "docs"), docsPath, category);
 
@@ -52,7 +58,7 @@ const bootstrap = async () => {
 
   await generateDocsConfig(docsPath);
 
-  await commitAndPush(docsPath, srcPath, tag);
+  await commitAndPush(docsPath, repository, tag);
 };
 
 void bootstrap();
