@@ -7,6 +7,9 @@ inputs:
   docs-path:
     description: "Path to the docs repository directory"
     default: "docs-dist"
+  repository:
+    description: "Name of the repository for the commit"
+    required: true
   category:
     description: "Category of the repository (bases are `engine`, `cli` and `editor`)"
     required: true
@@ -25,6 +28,7 @@ runs:
       env:
         INPUT_SRC_PATH: ${{ inputs.src-path }}
         INPUT_DOCS_PATH: ${{ inputs.docs-path }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
         INPUT_CATEGORY: ${{ inputs.category }}
         INPUT_REFERENCES: ${{ inputs.references }}
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
