@@ -1,6 +1,7 @@
 import { $ } from "bun";
 
 export const resolveTag = async (path: string): Promise<string> => {
+  await $`git fetch --tags`.cwd(path);
   const text = await $`git describe --tags --abbrev=0`.cwd(path).text();
   return text.trim();
 };
