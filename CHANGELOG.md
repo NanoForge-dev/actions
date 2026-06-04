@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.1.1](https://github.com/NanoForge-dev/actions/compare/2.1.0...2.1.1) - (2026-06-04)
+
+## Bug Fixes
+
+- Change sync docs defaults and release tag patterns (#76) ([06026e4](https://github.com/NanoForge-dev/actions/commit/06026e4ac909824284f38d12352e8554027e04c5)) by @Exeloo
+
 # [@nanoforge-dev/actions@2.1.0](https://github.com/NanoForge-dev/actions/compare/@nanoforge-dev/actions@1.4.2...@nanoforge-dev/actions@2.1.0) - (2026-06-03)
 
 ## Bug Fixes
