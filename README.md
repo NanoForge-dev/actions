@@ -31,6 +31,76 @@ pnpm add -D @nanoforge-dev/actions
 bun add -d @nanoforge-dev/actions
 ```
 
+## Actions
+
+### `create-packages-release-pr`
+
+Creates a pull request to release one or multiple packages at a shared version. It generates a release branch, bumps versions, and opens a PR ready to merge.
+
+| Input           | Required | Default                                               | Description                                                   |
+| --------------- | -------- | ----------------------------------------------------- | ------------------------------------------------------------- |
+| `packages`      | yes      | —                                                     | Comma-separated list of package names to release              |
+| `version`       | yes      | —                                                     | Version to release all packages at                            |
+| `branch-format` | no       | `releases/{package}@{version}`                        | Branch name format. Tokens: `{org}`, `{package}`, `{version}` |
+| `commit-format` | no       | `chore({package}): release {org}/{package}@{version}` | Commit message format. Same tokens as `branch-format`         |
+| `dry`           | no       | `false`                                               | Skip PR creation and only log what would have happened        |
+
+---
+
+### `release-packages`
+
+Publishes packages to npm and creates a tagged GitHub release after a release PR is merged. Supports single or multi-package releases, using the package changelog (single) or the aggregate root changelog (multiple).
+
+| Input            | Required | Default                     | Description                                                     |
+| ---------------- | -------- | --------------------------- | --------------------------------------------------------------- |
+| `packages`       | yes      | —                           | Comma-separated list of package names to release                |
+| `version`        | no       | —                           | Version being released. Resolved from `package.json` if omitted |
+| `tag-format`     | no       | `{org}/{package}@{version}` | Git tag format. Tokens: `{org}`, `{package}`, `{version}`       |
+| `npm`            | no       | `true`                      | Publish packages to the npm registry                            |
+| `github-release` | no       | `true`                      | Create a GitHub release                                         |
+| `latest`         | no       | `true`                      | Mark the GitHub release as the latest release                   |
+| `dry`            | no       | `false`                     | Skip publishing and tag creation                                |
+
+---
+
+### `release-nanoforge-packages`
+
+Releases any NanoForge component or system by resolving the dependency tree across a packages directory and publishing in the correct order to the Nanoforge registry.
+
+| Input     | Required | Default    | Description                                                                     |
+| --------- | -------- | ---------- | ------------------------------------------------------------------------------- |
+| `path`    | no       | `packages` | Path to the packages directory                                                  |
+| `package` | no       | —          | Published name of a single package to release (targets one package only)        |
+| `exclude` | no       | —          | Comma-separated list of packages to exclude from release (unless depended upon) |
+| `dry`     | no       | `false`    | Skip publishing and only log what would have happened                           |
+
+---
+
+### `release-dev`
+
+Publishes a package as a pre-release (e.g. `alpha`, `beta`) to npm, automatically computing and deprecating older pre-release versions under the same tag.
+
+| Input     | Required | Default | Description                                  |
+| --------- | -------- | ------- | -------------------------------------------- |
+| `package` | yes      | —       | Published name of the package to release     |
+| `tag`     | no       | `alpha` | Pre-release tag to publish under             |
+| `dry`     | no       | `false` | Skip publishing, deprecation, and the commit |
+
+---
+
+### `synchronize-docs`
+
+Copies documentation from a source repository into a shared docs repository and optionally generates API reference configuration files.
+
+| Input             | Required | Default      | Description                                                                               |
+| ----------------- | -------- | ------------ | ----------------------------------------------------------------------------------------- |
+| `repository`      | yes      | —            | Name of the repository (used in the commit message)                                       |
+| `category`        | yes      | —            | Category of the repository (`engine`, `cli`, `editor` or anything else)                   |
+| `src-path`        | no       | `.`          | Path to the source repository directory                                                   |
+| `docs-path`       | no       | `docs-dist`  | Path to the docs repository directory                                                     |
+| `references`      | no       | `false`      | Generate API reference configuration                                                      |
+| `references-path` | no       | `references` | Path to the references directory within `src-path` (required when `references` is `true`) |
+
 ## Links
 
 - [GitHub][source]
