@@ -36,8 +36,8 @@
   },
   "funding": "https://github.com/NanoForge-dev/actions?sponsor",
   "scripts": {
-    "lint": "prettier --check . && eslint --format=pretty src",
-    "format": "prettier --write . && eslint --fix --format=pretty src",
+    "lint": "prettier --check . && eslint --format=pretty actions lib",
+    "format": "prettier --write . && eslint --fix --format=pretty actions lib",
     "prepack": "pnpm run lint",
     "changelog": "git cliff --prepend ./CHANGELOG.md -u -c ./cliff.toml -r ../../ --include-path '*'",
     "release": "cliff-jumper",
@@ -76,7 +76,7 @@
     "**": [
       "prettier --ignore-unknown --write"
     ],
-    "src/**/*.ts": [
+    "{actions|lib}/**/*.ts": [
       "eslint --fix"
     ]
   }
