@@ -3,8 +3,6 @@ catalogs:
     '@actions/core': ^3.0.1
     '@actions/github': ^9.1.1
   build:
-    terser: ^5.48.0
-    tsdown: ^0.22.0
     typescript: ^6.0.3
   ci:
     '@commitlint/cli': ^21.0.1

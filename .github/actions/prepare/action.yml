@@ -7,9 +7,6 @@ inputs:
   pnpm-install:
     description: Install pnpm depedencies
     default: "true"
-  build:
-    description: Build packages
-    default: "true"
 runs:
   using: composite
   steps:
@@ -24,8 +21,3 @@ runs:
     - if: inputs.pnpm-install == 'true'
       name: Install dependencies
       uses: ./.github/actions/pnpm-install
-
-    - if: inputs.build == 'true'
-      name: Build packages
-      shell: bash
-      run: pnpm run build
