@@ -18,7 +18,7 @@ inputs:
     default: "false"
   references-path:
     description: "Path to the references directory from src-path. Defaults to `references` (required if reference is true)"
-    default: "references"
+    default: "docs/references"
 runs:
   using: composite
   steps:
