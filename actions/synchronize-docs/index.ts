@@ -13,8 +13,16 @@ const parseOptions = () => {
   program
     .name("synchronize docs")
     .description("Synchronize src docs to the docs repository")
-    .option("--src-path <path>", "path of repository containing the src docs", getInput("src_path"))
-    .option("--docs-path <path>", "path of repository containing the docs", getInput("docs_path"))
+    .option(
+      "--src-path <path>",
+      "path of repository containing the src docs",
+      safeGetStringInput("src_path", "."),
+    )
+    .option(
+      "--docs-path <path>",
+      "path of repository containing the docs",
+      safeGetStringInput("docs_path", "docs-dist"),
+    )
     .option(
       "--repository <name>",
       "name of the repository for commit message",
@@ -23,7 +31,7 @@ const parseOptions = () => {
     .option(
       "--references-path <path>",
       "path to the references directory from src-path. Defaults to `references` (required if reference is true)",
-      safeGetStringInput("references_path", "references"),
+      safeGetStringInput("references_path", "docs/references"),
     )
     .option("--category <category>", "category to put the targeted docs", getInput("category"))
     .option(

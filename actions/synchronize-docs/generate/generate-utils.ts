@@ -4,6 +4,7 @@ import { capitalize } from "../../../lib";
 
 export interface IGroup {
   group: string;
+  root?: string;
   pages: IPage[];
 }
 
@@ -15,11 +16,11 @@ export const VARS = {
   basePath: "",
 };
 
-export const generateBasePage = (name: string, path: string): IPage | undefined => {
+export const generateBasePage = (name: string, path: string, root: boolean): IPage | undefined => {
   try {
     const stat = statSync(`${VARS.basePath}${path}`);
-    if (stat.isFile()) return path.replace(/\.mdx?$/, "");
-    if (stat.isDirectory()) return generateBaseGroup(name, path);
+    if (stat.isFile()) return root ? undefined : path.replace(/\.mdx?$/, "");
+    if (stat.isDirectory()) return generateBaseGroup(name, path, root);
     return undefined;
   } catch {
     return undefined;
@@ -59,7 +60,7 @@ const sortFiles = (a: string, b: string) => {
 
 export const readdirAndApply = <T, U, F>(
   path: string,
-  apply: (name: string, path: string) => T | undefined,
+  apply: (name: string, path: string, root: boolean) => T | undefined,
   context: (elements: T[]) => U,
   fallback: F,
 ): U | F => {
@@ -69,13 +70,17 @@ export const readdirAndApply = <T, U, F>(
         readdirSync(`${VARS.basePath}${path}`)
           .sort(sortFiles)
           .filter((file) => !file.startsWith("."))
-          .map((file) => {
+          .map((file, _i, array) => {
             const s = file.split("-");
             const n = +(s[0] ?? "undefined");
             if (!isNaN(n) && isFinite(n)) s.shift();
             const name = s.map(formatName).join("-");
             const fullPath = `${path}/${file}`;
-            return apply(name, fullPath);
+            return apply(
+              name,
+              fullPath,
+              array.some((f) => `${f}.mdx` === file || f === `${file}.mdx`),
+            );
           }),
       ),
     );
@@ -84,13 +89,17 @@ export const readdirAndApply = <T, U, F>(
   }
 };
 
-export const generateBaseGroup = (name: string, path: string): IGroup | undefined =>
+export const generateBaseGroup = (name: string, path: string, root: boolean): IGroup | undefined =>
   readdirAndApply(
     path,
     generateBasePage,
-    (e) => ({
-      group: name,
-      pages: e,
-    }),
+    (e) => {
+      const base: IGroup = {
+        group: name,
+        pages: e,
+      };
+      if (root) base["root"] = path;
+      return base;
+    },
     undefined,
   );
