@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.1.4](https://github.com/NanoForge-dev/actions/compare/2.1.3...2.1.4) - (2026-06-11)
+
+## Bug Fixes
+
+- Change docs order and add a root to groups (#83) ([520fb9e](https://github.com/NanoForge-dev/actions/commit/520fb9eb185c27c705bd2a33992c2c639ebba335)) by @Exeloo
+
+## Documentation
+
+- Add actions docs (#82) ([fd5c580](https://github.com/NanoForge-dev/actions/commit/fd5c580ac050811d74145cf18b3c0f9ee0059d93)) by @Exeloo
+
 # [2.1.3](https://github.com/NanoForge-dev/actions/compare/2.1.2...2.1.3) - (2026-06-04)
 
 ## Bug Fixes
