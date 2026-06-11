@@ -18,5 +18,5 @@ export const commitAndPush = async (path: string, pkgName: string, tag?: string)
     console.log(e);
   }
 
-  await $`git push`.cwd(path);
+  await $`git push --no-verify`.cwd(path);
 };
