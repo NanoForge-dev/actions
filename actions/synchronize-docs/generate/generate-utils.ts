@@ -55,6 +55,9 @@ const sortFiles = (a: string, b: string) => {
     return aNum - bNum;
   }
 
+  if (a === "index.mdx") return -1;
+  if (b === "index.mdx") return 1;
+
   return a.localeCompare(b);
 };
 
