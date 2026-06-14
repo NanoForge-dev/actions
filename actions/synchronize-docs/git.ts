@@ -9,7 +9,7 @@ export const resolveTag = async (path: string): Promise<string> => {
 export const commitAndPush = async (path: string, pkgName: string, tag?: string): Promise<void> => {
   const message = `chore(${pkgName}): deploy docs${tag ? ` v${tag}` : ""}`;
 
-  await $`git add --all`.cwd(path);
+  await $`git add --all --no-verify`.cwd(path);
   try {
     await $`git -c user.name='github-actions[bot]' -c user.email='username@users.noreply.github.com' commit -m '${message}'`.cwd(
       path,
@@ -18,5 +18,5 @@ export const commitAndPush = async (path: string, pkgName: string, tag?: string)
     console.log(e);
   }
 
-  await $`git push`.cwd(path);
+  await $`git push --no-verify`.cwd(path);
 };
