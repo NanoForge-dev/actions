@@ -11,12 +11,12 @@ export const commitAndPush = async (path: string, pkgName: string, tag?: string)
 
   await $`git add --all`.cwd(path);
   try {
-    await $`git -c user.name='github-actions[bot]' -c user.email='username@users.noreply.github.com' commit -m '${message}'`.cwd(
+    await $`git -c user.name='github-actions[bot]' -c user.email='username@users.noreply.github.com' commit -m '${message}' --no-verify`.cwd(
       path,
     );
   } catch (e) {
     console.log(e);
   }
 
-  await $`git push`.cwd(path);
+  await $`git push --no-verify`.cwd(path);
 };

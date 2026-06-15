@@ -226,3 +226,5 @@ dist
 # Compiled files
 src/**/*.js
 src/**/*.d.ts
+
+.direnv
