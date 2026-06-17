@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.1.5](https://github.com/NanoForge-dev/actions/compare/2.1.4...2.1.5) - (2026-06-17)
+
+## Bug Fixes
+
+- **git:** Disable any git push hook checks on all actions with --no-v… (#85) ([73285c6](https://github.com/NanoForge-dev/actions/commit/73285c6d5ef0e1e23ec8216de459cb59939bc0ce)) by @MartinFillon
+- Add index order (#86) ([799e169](https://github.com/NanoForge-dev/actions/commit/799e169b0a9389e9821f64cf2ed89c84c67f12db)) by @Exeloo
+
 # [2.1.4](https://github.com/NanoForge-dev/actions/compare/2.1.3...2.1.4) - (2026-06-11)
 
 ## Bug Fixes
