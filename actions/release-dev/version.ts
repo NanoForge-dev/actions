@@ -1,5 +1,10 @@
 import semver from "semver";
 
+export interface Version {
+  version: string;
+  deprecated?: string;
+}
+
 interface DevRelease {
   newVersion: string;
   toDeprecate: string[];
@@ -22,12 +27,12 @@ const sanitizeBranch = (branch: string): string => {
     .replace(/^-|-$/g, "");
 };
 
-export const fetchDevVersions = async (pkgName: string, tag: string): Promise<string[]> => {
+export const fetchDevVersions = async (pkgName: string, tag: string): Promise<Version[]> => {
   try {
     const res = await fetch(`https://registry.npmjs.org/${pkgName}`);
     if (!res.ok) return [];
-    const data = (await res.json()) as { versions: Record<string, unknown> };
-    return Object.keys(data.versions).filter((v) => semver.prerelease(v)?.[0] === tag);
+    const data = (await res.json()) as { versions: Record<string, Version> };
+    return Object.values(data.versions).filter((v) => semver.prerelease(v.version)?.[0] === tag);
   } catch {
     return [];
   }
@@ -36,23 +41,25 @@ export const fetchDevVersions = async (pkgName: string, tag: string): Promise<st
 export const resolveAlphaRelease = (
   currentVersion: string,
   branchName: string,
-  existingAlphas: string[],
+  existingAlphas: Version[],
 ): DevRelease => {
   const nextBase = resolveNextBase(currentVersion);
   const branchSlug = sanitizeBranch(branchName);
   const prefix = `${nextBase}-alpha.${branchSlug}.`;
 
-  const seen = new Set([...existingAlphas.filter((v) => v.startsWith(prefix))]);
-  if (currentVersion.startsWith(prefix)) seen.add(currentVersion);
+  const seen = new Set([...existingAlphas.filter((v) => v.version.startsWith(prefix))]);
+  if (currentVersion.startsWith(prefix)) seen.add({ version: currentVersion });
   const branchAlphas = [...seen];
 
   const maxN = branchAlphas.reduce((max, v) => {
-    const n = parseInt(v.slice(prefix.length), 10);
+    const n = parseInt(v.version.slice(prefix.length), 10);
     return isNaN(n) ? max : Math.max(max, n);
   }, -1);
 
   const newVersion = `${prefix}${maxN + 1}`;
-  const toDeprecate = branchAlphas.filter((v) => v !== newVersion);
+  const toDeprecate = branchAlphas
+    .filter((v) => v.version !== newVersion && !v.deprecated)
+    .map(({ version }) => version);
 
   return { newVersion, toDeprecate };
 };
@@ -60,11 +67,13 @@ export const resolveAlphaRelease = (
 export const resolveBetaRelease = (
   currentVersion: string,
   commitSha: string,
-  existingBetas: string[],
+  existingBetas: Version[],
 ): DevRelease => {
   const nextBase = resolveNextBase(currentVersion);
   const newVersion = `${nextBase}-beta.${commitSha.slice(0, 7)}`;
-  const toDeprecate = existingBetas.filter((v) => v !== newVersion);
+  const toDeprecate = existingBetas
+    .filter((v) => v.version !== newVersion && !v.deprecated)
+    .map(({ version }) => version);
 
   return { newVersion, toDeprecate };
 };

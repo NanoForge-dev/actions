@@ -5,7 +5,7 @@ import process from "node:process";
 import { resolvePackage, safeGetBooleanInput, updateVersion } from "../../lib";
 import { commitAndPush } from "./git";
 import { deprecateOldDevVersions, publishDev } from "./npm";
-import { fetchDevVersions, resolveAlphaRelease, resolveBetaRelease } from "./version";
+import { type Version, fetchDevVersions, resolveAlphaRelease, resolveBetaRelease } from "./version";
 
 const parseOptions = () => {
   program
@@ -27,7 +27,7 @@ const parseOptions = () => {
   return program.opts<{ dry: boolean; package: string; tag: string }>();
 };
 
-const resolveRelease = (currentVersion: string, tag: string, existingVersions: string[]) => {
+const resolveRelease = (currentVersion: string, tag: string, existingVersions: Version[]) => {
   if (tag === "alpha") {
     const branch = process.env.GITHUB_REF_NAME ?? "";
     if (!branch) throw new Error("GITHUB_REF_NAME is required for alpha releases");
