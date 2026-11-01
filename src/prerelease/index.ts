@@ -54,7 +54,7 @@ const main = async () => {
   }
 
   const onDefaultBranch = process.env.GITHUB_REF_NAME === defaultBranch();
-  const published: string[] = [];
+  const versions: string[] = [];
   const deprecated: string[] = [];
 
   for (const pkg of findPackages(await listWorkspace(), names)) {
@@ -62,7 +62,7 @@ const main = async () => {
     const { newVersion, toDeprecate } = resolveRelease(pkg.version, channel, existing);
     info(`Resolved next ${channel}: ${pkg.name}@${newVersion}`);
     await setVersion(pkg.path, newVersion);
-    published.push(`\`${pkg.name}@${newVersion}\` (tag \`${channel}\`)`);
+    versions.push(`${pkg.name}@${newVersion}`);
     deprecated.push(...toDeprecate.map((version) => `\`${pkg.name}@${version}\``));
 
     if (dry) {
@@ -87,9 +87,9 @@ const main = async () => {
   else if (dry) info("[DRY] Would commit and push the version bump");
   else if (await commitAll(`chore(release): ${channel} ${names.join(", ")}`)) await push();
 
-  setOutput("versions", JSON.stringify(published));
+  setOutput("versions", JSON.stringify(versions));
   await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [
-    ["Published", published],
+    ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
     ["Deprecated", deprecated],
   ]);
 };
