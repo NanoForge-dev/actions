@@ -7526,9 +7526,9 @@ var planShared = async (group, pkgs, groupPkgs, forced) => {
         throw error2;
     }
   }
-  const version = highestVersion(results.map((result) => result.version));
-  if (!results.length || !version)
+  if (!results.length)
     throw new NothingToReleaseError("No selected package has a feat, fix or breaking commit since its last release: give a version to release anyway");
+  const version = highestVersion(results.map((result) => result.version));
   const { bump, since } = results.find((result) => result.version === version);
   const reason = `${bump} bump since ${since ?? "the first commit"}`;
   return pkgs.map((pkg) => ({ pkg, version, reason }));

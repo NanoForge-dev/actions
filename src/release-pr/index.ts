@@ -59,11 +59,11 @@ const planShared = async (
       if (!(error instanceof NothingToReleaseError)) throw error;
     }
   }
-  const version = highestVersion(results.map((result) => result.version));
-  if (!results.length || !version)
+  if (!results.length)
     throw new NothingToReleaseError(
       "No selected package has a feat, fix or breaking commit since its last release: give a version to release anyway",
     );
+  const version = highestVersion(results.map((result) => result.version));
   const { bump, since } = results.find(
     (result) => result.version === version,
   ) as (typeof results)[0];

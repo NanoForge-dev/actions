@@ -48,7 +48,7 @@ runs:
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
-    # Separate step: the token never reaches the step that runs the repo's docs script.
+    # Separate step: the token is not in the env of the step that runs the repo's docs script.
     - name: Push the docs
       if: steps.run.outputs.changed == 'true'
       shell: bash
@@ -57,6 +57,19 @@ runs:
         DOCS_TOKEN: ${{ inputs.docs-token }}
       run: |
         if [ -z "$DOCS_TOKEN" ]; then git -C "$DOCS_PATH" push --no-verify; exit 0; fi
+        # The docs script ran before this step and could have edited docs-path/.git/config or ~/.gitconfig
+        # (insteadOf, proxy, include...): push from a fresh repo, with no system or global config, to a checked URL.
+        # shortcut: this narrows the exposure, it doesn't isolate it: earlier steps of the job can still change
+        # this step through $GITHUB_ENV/$GITHUB_PATH. Upgrade to a separate push job if the docs script isn't trusted.
+        export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+        url="$(git -C "$DOCS_PATH" remote get-url origin)"
+        branch="$(git -C "$DOCS_PATH" symbolic-ref --short HEAD)"
+        [[ "$url" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "::error::Unexpected docs remote"; exit 1; }
+        git check-ref-format --branch "$branch" >/dev/null || { echo "::error::Unexpected docs branch"; exit 1; }
         basic="$(printf 'x-access-token:%s' "$DOCS_TOKEN" | base64 -w0)"
         echo "::add-mask::$basic"
-        git -C "$DOCS_PATH" -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --no-verify
+        clean="$RUNNER_TEMP/docs-push"
+        git init -q --bare "$clean"
+        git -C "$clean" fetch -q --no-tags "$(cd "$DOCS_PATH" && pwd)" "HEAD:refs/heads/$branch"
+        git -C "$clean" -c core.hooksPath=/dev/null -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" \
+          push "$url" "refs/heads/$branch:refs/heads/$branch"
