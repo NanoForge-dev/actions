@@ -213,17 +213,18 @@ Copies `docs/docs/` and `docs/guides/` of the source repository (and the API ref
 
 The config is only read when `category` is empty: with a `category` input, `references` and `references-path` default to `false` and `docs/references`.
 
-| Input             | Default               | Description                                                                 |
-| ----------------- | --------------------- | --------------------------------------------------------------------------- |
-| `repository`      | this repo's name      | Commit message scope                                                        |
-| `category`        | `docs.category`       | Docs category (`engine`, `cli`, `editor`...)                                |
-| `src-path`        | `.`                   | Source repository                                                           |
-| `docs-path`       | `docs-dist`           | Checked-out docs repository                                                 |
-| `references`      | `docs.references`     | Generate the references with `pnpm run docs`                                |
-| `references-path` | `docs.referencesPath` | References directory                                                        |
-| `version`         |                       | Released version: the references folder (required with references)          |
-| `docs-token`      |                       | Token that pushes to the docs repository. Empty: its checkout's credentials |
-| `config`          |                       |                                                                             |
+| Input             | Default               | Description                                                                                                    |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `repository`      | this repo's name      | Commit message scope                                                                                           |
+| `category`        | `docs.category`       | Docs category (`engine`, `cli`, `editor`...)                                                                   |
+| `src-path`        | `.`                   | Source repository                                                                                              |
+| `docs-path`       | `docs-dist`           | Checked-out docs repository                                                                                    |
+| `references`      | `docs.references`     | Generate the references with `pnpm run docs`                                                                   |
+| `references-path` | `docs.referencesPath` | References directory                                                                                           |
+| `version`         |                       | Released version: the references folder (required with references)                                             |
+| `docs-token`      |                       | Token that pushes to the docs repository. Empty: its checkout's credentials (then readable by the docs script) |
+| `docs-repository` | `NanoForge-dev/docs`  | Repository the token pushes to (never the checkout's remote, which the docs script could change)               |
+| `config`          |                       |                                                                                                                |
 
 ### `export-env`
 

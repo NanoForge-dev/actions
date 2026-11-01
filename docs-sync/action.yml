@@ -25,6 +25,9 @@ inputs:
   docs-token:
     description: "Token that can push to the docs repository. Empty: the credentials of its checkout"
     default: ""
+  docs-repository:
+    description: "owner/name of the docs repository the token pushes to"
+    default: "NanoForge-dev/docs"
   config:
     description: "Path of the release config, from the repository root"
     default: ".github/nanoforge.json"
@@ -55,21 +58,23 @@ runs:
       env:
         DOCS_PATH: ${{ inputs.docs-path }}
         DOCS_TOKEN: ${{ inputs.docs-token }}
+        DOCS_REPOSITORY: ${{ inputs.docs-repository }}
       run: |
         if [ -z "$DOCS_TOKEN" ]; then git -C "$DOCS_PATH" push --no-verify; exit 0; fi
         # The docs script ran before this step and could have edited docs-path/.git/config or ~/.gitconfig
-        # (insteadOf, proxy, include...): push from a fresh repo, with no system or global config, to a checked URL.
+        # (insteadOf, proxy, include, origin...): push from a fresh repo, with no system or global config, to the
+        # docs-repository input, never to the checkout's remote.
         # shortcut: this narrows the exposure, it doesn't isolate it: earlier steps of the job can still change
         # this step through $GITHUB_ENV/$GITHUB_PATH. Upgrade to a separate push job if the docs script isn't trusted.
         export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
-        url="$(git -C "$DOCS_PATH" remote get-url origin)"
+        [[ "$DOCS_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "::error::docs-repository must be owner/name"; exit 1; }
+        url="https://github.com/$DOCS_REPOSITORY"
         branch="$(git -C "$DOCS_PATH" symbolic-ref --short HEAD)"
-        [[ "$url" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "::error::Unexpected docs remote"; exit 1; }
         git check-ref-format --branch "$branch" >/dev/null || { echo "::error::Unexpected docs branch"; exit 1; }
         basic="$(printf 'x-access-token:%s' "$DOCS_TOKEN" | base64 -w0)"
         echo "::add-mask::$basic"
         clean="$RUNNER_TEMP/docs-push"
         git init -q --bare "$clean"
         git -C "$clean" fetch -q --no-tags "$(cd "$DOCS_PATH" && pwd)" "HEAD:refs/heads/$branch"
-        git -C "$clean" -c core.hooksPath=/dev/null -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" \
+        git -C "$clean" -c core.hooksPath=/dev/null -c "http.$url.extraheader=AUTHORIZATION: basic $basic" \
           push "$url" "refs/heads/$branch:refs/heads/$branch"
