@@ -650,7 +650,7 @@ var GROUP_KEYS = [
   "majorTag",
   "betaOnMerge"
 ];
-var DOCS_KEYS = ["category", "references", "referencesPath"];
+var DOCS_KEYS = ["group", "category", "references", "referencesPath"];
 var assertKnownKeys = (obj, keys, where) => {
   const unknown = Object.keys(obj).filter((key) => !keys.includes(key));
   if (unknown.length)
@@ -699,14 +699,23 @@ var parseConfig = (raw) => {
       seen.set(pkg, group.name);
     }
   }
+  for (const group of groups) {
+    const clash = groups.find((other) => other !== group && other.tagFormat === group.tagFormat && !/\{(name|package)\}/.test(group.tagFormat));
+    if (clash)
+      throw new Error(`Invalid ${CONFIG_PATH}: groups "${group.name}" and "${clash.name}" share the tag format "${group.tagFormat}": add {name} to one of them`);
+  }
   if (raw.docs === undefined)
     return { groups };
   if (!isObject(raw.docs))
     throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
+  const docsGroup = read(raw.docs, "group", "docs", isString, groups[0].name);
+  if (!groups.some((group) => group.name === docsGroup))
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
   return {
     groups,
     docs: {
+      group: docsGroup,
       category: read(raw.docs, "category", "docs", isString),
       references: read(raw.docs, "references", "docs", isBoolean, false),
       referencesPath: read(raw.docs, "referencesPath", "docs", isString, "docs/references")

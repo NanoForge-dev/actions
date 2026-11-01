@@ -57,12 +57,26 @@ describe("parseConfig", () => {
     [{ groups: [{ name: "g", packages: ["a"], betaOnmerge: true }] }, /unknown key.*betaOnmerge/],
     [{ groups: [{ name: "g", packages: ["a"] }], extra: 1 }, /unknown key.*extra/],
     [{ groups: [{ name: "g", packages: ["a"], branchFormat: "release/{version}" }] }, /releases\//],
+    [
+      {
+        groups: [
+          { name: "g", packages: ["a"] },
+          { name: "h", packages: ["b"] },
+        ],
+      },
+      /share the tag format/,
+    ],
+    [
+      { groups: [{ name: "g", packages: ["a"] }], docs: { category: "cli", group: "x" } },
+      /not a group/,
+    ],
   ])("rejects %j", (raw, error) => expect(() => parseConfig(raw)).toThrow(error));
 
   test("reads docs with defaults", () => {
     expect(
       parseConfig({ groups: [{ name: "g", packages: ["a"] }], docs: { category: "cli" } }).docs,
     ).toEqual({
+      group: "g",
       category: "cli",
       references: false,
       referencesPath: "docs/references",
@@ -70,11 +84,24 @@ describe("parseConfig", () => {
   });
 });
 
+test("groups can share a tag format that names them", () => {
+  const raw = {
+    groups: [
+      { name: "g", packages: ["a"] },
+      { name: "h", packages: ["b"], versioning: "independent" },
+    ],
+  };
+  expect(parseConfig(raw).groups.map((group) => group.tagFormat)).toEqual([
+    "{version}",
+    "{package}@{version}",
+  ]);
+});
+
 test("selectGroup defaults to the first group and rejects unknown ones", () => {
   const config = parseConfig({
     groups: [
       { name: "g", packages: ["a"] },
-      { name: "h", packages: ["b"] },
+      { name: "h", packages: ["b"], tagFormat: "{name}@{version}" },
     ],
   });
   expect(selectGroup(config, "").name).toBe("g");

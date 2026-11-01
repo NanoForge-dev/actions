@@ -26,6 +26,9 @@ outputs:
   tags:
     description: "JSON list of every tag created"
     value: ${{ steps.run.outputs.tags }}
+  docs-version:
+    description: "Version to publish the docs at, when the docs group was released (else empty)"
+    value: ${{ steps.run.outputs.docs-version }}
   packages:
     description: "JSON list of the released {name, version}"
     value: ${{ steps.run.outputs.packages }}

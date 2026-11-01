@@ -3356,7 +3356,7 @@ var GROUP_KEYS = [
   "majorTag",
   "betaOnMerge"
 ];
-var DOCS_KEYS = ["category", "references", "referencesPath"];
+var DOCS_KEYS = ["group", "category", "references", "referencesPath"];
 var assertKnownKeys = (obj, keys, where) => {
   const unknown = Object.keys(obj).filter((key) => !keys.includes(key));
   if (unknown.length)
@@ -3405,14 +3405,23 @@ var parseConfig = (raw) => {
       seen.set(pkg, group.name);
     }
   }
+  for (const group of groups) {
+    const clash = groups.find((other) => other !== group && other.tagFormat === group.tagFormat && !/\{(name|package)\}/.test(group.tagFormat));
+    if (clash)
+      throw new Error(`Invalid ${CONFIG_PATH}: groups "${group.name}" and "${clash.name}" share the tag format "${group.tagFormat}": add {name} to one of them`);
+  }
   if (raw.docs === undefined)
     return { groups };
   if (!isObject(raw.docs))
     throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
+  const docsGroup = read(raw.docs, "group", "docs", isString, groups[0].name);
+  if (!groups.some((group) => group.name === docsGroup))
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
   return {
     groups,
     docs: {
+      group: docsGroup,
       category: read(raw.docs, "category", "docs", isString),
       references: read(raw.docs, "references", "docs", isBoolean, false),
       referencesPath: read(raw.docs, "referencesPath", "docs", isString, "docs/references")
@@ -7154,17 +7163,22 @@ var createPullRequest = async (head, title, body) => {
   });
   return data.html_url;
 };
+var status = (error2) => error2?.status;
 var createTag = async (tag, sha) => {
   try {
     await client().rest.git.createRef({ ...context2.repo, ref: `refs/tags/${tag}`, sha });
   } catch (error2) {
-    warning(`Failed to create tag "${tag}": ${error2}`);
+    if (status(error2) !== 422)
+      throw new Error(`Failed to create tag "${tag}": ${error2}`);
+    warning(`Tag "${tag}" already exists`);
   }
 };
 var moveTag = async (tag, sha) => {
   try {
     await client().rest.git.updateRef({ ...context2.repo, ref: `tags/${tag}`, sha, force: true });
-  } catch {
+  } catch (error2) {
+    if (status(error2) !== 422)
+      throw new Error(`Failed to move tag "${tag}": ${error2}`);
     info(`Tag "${tag}" doesn't exist yet, creating it`);
     await createTag(tag, sha);
   }
@@ -7181,7 +7195,9 @@ var createRelease = async (tag, sha, body, latest) => {
       make_latest: latest ? "true" : "false"
     });
   } catch (error2) {
-    warning(`Failed to create GitHub release "${tag}": ${error2}`);
+    if (status(error2) !== 422)
+      throw new Error(`Failed to create the GitHub release "${tag}": ${error2}`);
+    warning(`GitHub release "${tag}" already exists`);
   }
 };
 
@@ -7344,6 +7360,10 @@ var main = async () => {
   const deprecated = [];
   const planned = [];
   for (const pkg of findPackages(await listWorkspace(), names)) {
+    if (pkg.private || !groupOf(config, pkg.name)?.npm) {
+      info(`Skipping ${pkg.name}: ${pkg.private ? "private" : "npm is disabled for its group"}`);
+      continue;
+    }
     const { newVersion, toDeprecate } = resolveRelease(pkg.version, channel, await fetchDevVersions(pkg.name, channel));
     info(`Resolved next ${channel}: ${pkg.name}@${newVersion}`);
     await setVersion(pkg.path, newVersion);

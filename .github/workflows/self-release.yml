@@ -32,5 +32,9 @@ jobs:
           install: "false"
           swap-size-gb: "0"
 
+      # Moving v3 onto commits that change workflows may need more than GITHUB_TOKEN can do: the bot token
+      # (with the workflow permission) is used when it is set. A failed move fails the job.
       - name: Release
         uses: ./release
+        with:
+          github-token: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}

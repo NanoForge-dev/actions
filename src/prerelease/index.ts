@@ -2,7 +2,7 @@ import { info, setFailed, setOutput, warning } from "@actions/core";
 import { $ } from "bun";
 import process from "node:process";
 
-import { type NanoforgeConfig, loadConfig } from "../lib/config";
+import { type NanoforgeConfig, groupOf, loadConfig } from "../lib/config";
 import { commitAll, push } from "../lib/git";
 import { defaultBranch } from "../lib/github";
 import { getBoolean, getList, getString } from "../lib/inputs";
@@ -59,6 +59,10 @@ const main = async () => {
 
   const planned = [];
   for (const pkg of findPackages(await listWorkspace(), names)) {
+    if (pkg.private || !groupOf(config, pkg.name)?.npm) {
+      info(`Skipping ${pkg.name}: ${pkg.private ? "private" : "npm is disabled for its group"}`);
+      continue;
+    }
     const { newVersion, toDeprecate } = resolveRelease(
       pkg.version,
       channel,

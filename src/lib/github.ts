@@ -30,24 +30,31 @@ export const createPullRequest = async (
   return data.html_url;
 };
 
+const status = (error: unknown): number | undefined =>
+  (error as { status?: number } | undefined)?.status;
+
+/** Creates `tag`. An existing tag (a re-run) only warns; any other failure throws. */
 export const createTag = async (tag: string, sha: string): Promise<void> => {
   try {
     await client().rest.git.createRef({ ...context.repo, ref: `refs/tags/${tag}`, sha });
   } catch (error) {
-    warning(`Failed to create tag "${tag}": ${error}`);
+    if (status(error) !== 422) throw new Error(`Failed to create tag "${tag}": ${error}`);
+    warning(`Tag "${tag}" already exists`);
   }
 };
 
-/** Creates or moves `tag` (e.g. `v3`) to `sha`. */
+/** Creates or moves `tag` (e.g. `v3`) to `sha`. Throws when it can't, so consumers never silently stay behind. */
 export const moveTag = async (tag: string, sha: string): Promise<void> => {
   try {
     await client().rest.git.updateRef({ ...context.repo, ref: `tags/${tag}`, sha, force: true });
-  } catch {
+  } catch (error) {
+    if (status(error) !== 422) throw new Error(`Failed to move tag "${tag}": ${error}`);
     info(`Tag "${tag}" doesn't exist yet, creating it`);
     await createTag(tag, sha);
   }
 };
 
+/** Creates the GitHub release of `tag`. An existing release (a re-run) only warns; any other failure throws. */
 export const createRelease = async (
   tag: string,
   sha: string,
@@ -65,6 +72,8 @@ export const createRelease = async (
       make_latest: latest ? "true" : "false",
     });
   } catch (error) {
-    warning(`Failed to create GitHub release "${tag}": ${error}`);
+    if (status(error) !== 422)
+      throw new Error(`Failed to create the GitHub release "${tag}": ${error}`);
+    warning(`GitHub release "${tag}" already exists`);
   }
 };

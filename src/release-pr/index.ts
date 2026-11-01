@@ -8,7 +8,12 @@ import { createPullRequest } from "../lib/github";
 import { getBoolean, getList, getString } from "../lib/inputs";
 import { runPackageChangelog, updateRootChangelog } from "../lib/root-changelog";
 import { writeSummary } from "../lib/summary";
-import { assertVersion, highestVersion, resolveNextVersion } from "../lib/version";
+import {
+  NothingToReleaseError,
+  assertVersion,
+  highestVersion,
+  resolveNextVersion,
+} from "../lib/version";
 import {
   type WorkspacePackage,
   findPackages,
@@ -27,10 +32,13 @@ interface PlannedRelease {
 const planShared = async (
   group: ReleaseGroup,
   pkgs: WorkspacePackage[],
+  groupPkgs: WorkspacePackage[],
   forced: string,
 ): Promise<PlannedRelease[]> => {
   if (forced) return pkgs.map((pkg) => ({ pkg, version: forced, reason: "given version" }));
-  const current = highestVersion(pkgs.map((pkg) => pkg.version));
+  // The whole group shares one version line: start from its highest version, so releasing a subset
+  // never reuses a version (and a tag) another subset already took.
+  const current = highestVersion(groupPkgs.map((pkg) => pkg.version));
   const { version, bump, since } = await resolveNextVersion(
     current,
     {
@@ -55,13 +63,22 @@ const planIndependent = async (
       plans.push({ pkg, version: forced, reason: "given version" });
       continue;
     }
-    const { version, bump, since } = await resolveNextVersion(
-      pkg.version,
-      { format: group.tagFormat, name: group.name, package: pkg.name },
-      [repoRelative(pkg.path)],
-    );
-    plans.push({ pkg, version, reason: `${bump} bump since ${since ?? "the first commit"}` });
+    try {
+      const { version, bump, since } = await resolveNextVersion(
+        pkg.version,
+        { format: group.tagFormat, name: group.name, package: pkg.name },
+        [repoRelative(pkg.path)],
+      );
+      plans.push({ pkg, version, reason: `${bump} bump since ${since ?? "the first commit"}` });
+    } catch (error) {
+      if (!(error instanceof NothingToReleaseError)) throw error;
+      info(`Skipping ${pkg.name}: ${error.message}`);
+    }
   }
+  if (!plans.length)
+    throw new Error(
+      "No selected package has a feat, fix or breaking commit: give a version to release anyway",
+    );
   return plans;
 };
 
@@ -102,10 +119,11 @@ const main = async () => {
   const group = selectGroup(config, getString("group"));
   const forced = getString("version") && assertVersion(getString("version"));
 
-  const pkgs = findPackages(await listWorkspace(), selectPackages(group, getList("packages")));
+  const workspace = await listWorkspace();
+  const pkgs = findPackages(workspace, selectPackages(group, getList("packages")));
   const plans =
     group.versioning === "shared"
-      ? await planShared(group, pkgs, forced)
+      ? await planShared(group, pkgs, findPackages(workspace, group.packages), forced)
       : await planIndependent(group, pkgs, forced);
 
   const versions = new Set(plans.map((plan) => plan.version));

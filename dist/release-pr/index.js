@@ -3355,7 +3355,7 @@ var GROUP_KEYS = [
   "majorTag",
   "betaOnMerge"
 ];
-var DOCS_KEYS = ["category", "references", "referencesPath"];
+var DOCS_KEYS = ["group", "category", "references", "referencesPath"];
 var assertKnownKeys = (obj, keys, where) => {
   const unknown = Object.keys(obj).filter((key) => !keys.includes(key));
   if (unknown.length)
@@ -3404,14 +3404,23 @@ var parseConfig = (raw) => {
       seen.set(pkg, group.name);
     }
   }
+  for (const group of groups) {
+    const clash = groups.find((other) => other !== group && other.tagFormat === group.tagFormat && !/\{(name|package)\}/.test(group.tagFormat));
+    if (clash)
+      throw new Error(`Invalid ${CONFIG_PATH}: groups "${group.name}" and "${clash.name}" share the tag format "${group.tagFormat}": add {name} to one of them`);
+  }
   if (raw.docs === undefined)
     return { groups };
   if (!isObject(raw.docs))
     throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
+  const docsGroup = read(raw.docs, "group", "docs", isString, groups[0].name);
+  if (!groups.some((group) => group.name === docsGroup))
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
   return {
     groups,
     docs: {
+      group: docsGroup,
       category: read(raw.docs, "category", "docs", isString),
       references: read(raw.docs, "references", "docs", isBoolean, false),
       referencesPath: read(raw.docs, "referencesPath", "docs", isString, "docs/references")
@@ -7164,17 +7173,22 @@ var createPullRequest = async (head, title, body) => {
   });
   return data.html_url;
 };
+var status = (error2) => error2?.status;
 var createTag = async (tag, sha) => {
   try {
     await client().rest.git.createRef({ ...context2.repo, ref: `refs/tags/${tag}`, sha });
   } catch (error2) {
-    warning(`Failed to create tag "${tag}": ${error2}`);
+    if (status(error2) !== 422)
+      throw new Error(`Failed to create tag "${tag}": ${error2}`);
+    warning(`Tag "${tag}" already exists`);
   }
 };
 var moveTag = async (tag, sha) => {
   try {
     await client().rest.git.updateRef({ ...context2.repo, ref: `tags/${tag}`, sha, force: true });
-  } catch {
+  } catch (error2) {
+    if (status(error2) !== 422)
+      throw new Error(`Failed to move tag "${tag}": ${error2}`);
     info(`Tag "${tag}" doesn't exist yet, creating it`);
     await createTag(tag, sha);
   }
@@ -7191,7 +7205,9 @@ var createRelease = async (tag, sha, body, latest) => {
       make_latest: latest ? "true" : "false"
     });
   } catch (error2) {
-    warning(`Failed to create GitHub release "${tag}": ${error2}`);
+    if (status(error2) !== 422)
+      throw new Error(`Failed to create the GitHub release "${tag}": ${error2}`);
+    warning(`GitHub release "${tag}" already exists`);
   }
 };
 
@@ -7383,6 +7399,8 @@ ${lines.map((line) => `- ${line}`).join(`
 
 // src/lib/version.ts
 var import_semver = __toESM(require_semver2(), 1);
+class NothingToReleaseError extends Error {
+}
 var ORDER = ["patch", "minor", "major"];
 var HEADER = /^(?<type>\w+)(?:\([^)]*\))?(?<breaking>!)?: /;
 var commitBump = (message) => {
@@ -7421,7 +7439,7 @@ var resolveNextVersion = async (current, tag, paths) => {
   const since = await tagExists(tagName) ? tagName : undefined;
   const bump = highestBump(await commitMessages(since, paths));
   if (!bump)
-    throw new Error(`No feat, fix or breaking commit since ${since ?? "the first commit"} in ${paths.join(", ")}: give a version to release anyway`);
+    throw new NothingToReleaseError(`No feat, fix or breaking commit since ${since ?? "the first commit"} in ${paths.join(", ")}: give a version to release anyway`);
   return { version: bumpVersion(current, bump), bump, since };
 };
 
@@ -7456,10 +7474,10 @@ var setVersion = async (pkgPath, version) => {
 };
 
 // src/release-pr/index.ts
-var planShared = async (group, pkgs, forced) => {
+var planShared = async (group, pkgs, groupPkgs, forced) => {
   if (forced)
     return pkgs.map((pkg) => ({ pkg, version: forced, reason: "given version" }));
-  const current = highestVersion(pkgs.map((pkg) => pkg.version));
+  const current = highestVersion(groupPkgs.map((pkg) => pkg.version));
   const { version, bump, since } = await resolveNextVersion(current, {
     format: group.tagFormat,
     name: group.name,
@@ -7475,9 +7493,17 @@ var planIndependent = async (group, pkgs, forced) => {
       plans.push({ pkg, version: forced, reason: "given version" });
       continue;
     }
-    const { version, bump, since } = await resolveNextVersion(pkg.version, { format: group.tagFormat, name: group.name, package: pkg.name }, [repoRelative(pkg.path)]);
-    plans.push({ pkg, version, reason: `${bump} bump since ${since ?? "the first commit"}` });
+    try {
+      const { version, bump, since } = await resolveNextVersion(pkg.version, { format: group.tagFormat, name: group.name, package: pkg.name }, [repoRelative(pkg.path)]);
+      plans.push({ pkg, version, reason: `${bump} bump since ${since ?? "the first commit"}` });
+    } catch (error2) {
+      if (!(error2 instanceof NothingToReleaseError))
+        throw error2;
+      info(`Skipping ${pkg.name}: ${error2.message}`);
+    }
   }
+  if (!plans.length)
+    throw new Error("No selected package has a feat, fix or breaking commit: give a version to release anyway");
   return plans;
 };
 var applyVersions = async (group, plans) => {
@@ -7505,8 +7531,9 @@ var main = async () => {
   const config = await loadConfig(rootPath(), getString("config"));
   const group = selectGroup(config, getString("group"));
   const forced = getString("version") && assertVersion(getString("version"));
-  const pkgs = findPackages(await listWorkspace(), selectPackages(group, getList("packages")));
-  const plans = group.versioning === "shared" ? await planShared(group, pkgs, forced) : await planIndependent(group, pkgs, forced);
+  const workspace = await listWorkspace();
+  const pkgs = findPackages(workspace, selectPackages(group, getList("packages")));
+  const plans = group.versioning === "shared" ? await planShared(group, pkgs, findPackages(workspace, group.packages), forced) : await planIndependent(group, pkgs, forced);
   const versions = new Set(plans.map((plan) => plan.version));
   const tokens = {
     name: group.name,

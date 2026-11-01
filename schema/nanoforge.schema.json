@@ -19,6 +19,11 @@
       "required": ["category"],
       "additionalProperties": false,
       "properties": {
+        "group": {
+          "description": "Group whose releases sync the docs. Default: the first group",
+          "type": "string",
+          "minLength": 1
+        },
         "category": {
           "description": "Docs category: engine, cli, editor...",
           "type": "string",

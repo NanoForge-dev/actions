@@ -158,6 +158,9 @@ const main = async () => {
   await createTags(tagged, dry);
 
   const first = tagged[0] as Tagged;
+  // Docs follow the releases of one group only (docs.group), with that group's version.
+  const docs = tagged.find(({ group }) => group.name === config.docs?.group);
+  setOutput("docs-version", docs?.version ?? "");
   setOutput("version", first.version);
   setOutput("tag", first.tag);
   setOutput("tags", JSON.stringify(tagged.map(({ tag }) => tag)));

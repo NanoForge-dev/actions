@@ -44,7 +44,6 @@ jobs:
       contents: read
     outputs:
       beta: ${{ steps.read.outputs.beta }}
-      docs: ${{ steps.read.outputs.docs }}
     steps:
       - name: Checkout config
         uses: actions/checkout@v7
@@ -58,7 +57,6 @@ jobs:
         id: read
         run: |
           echo "beta=$(jq -r '[.groups[] | select(.betaOnMerge == true)] | length > 0' .github/nanoforge.json)" >> "$GITHUB_OUTPUT"
-          echo "docs=$(jq -r 'has("docs")' .github/nanoforge.json)" >> "$GITHUB_OUTPUT"
 
   release:
     name: Release
@@ -108,7 +106,9 @@ jobs:
 
       # Docs run in this job, after the build of the prepare step, instead of preparing a second time.
       - name: Checkout docs repository
-        if: steps.release.outputs.released == 'true' && needs.config.outputs.docs == 'true'
+        if: steps.release.outputs.docs-version != ''
+        # Packages are already published here: a docs failure must not block the deploy jobs.
+        continue-on-error: true
         uses: actions/checkout@v7
         with:
           path: docs-dist
@@ -117,10 +117,11 @@ jobs:
           persist-credentials: false
 
       - name: Sync docs
-        if: steps.release.outputs.released == 'true' && needs.config.outputs.docs == 'true'
+        if: steps.release.outputs.docs-version != ''
+        continue-on-error: true
         uses: NanoForge-dev/actions/docs-sync@v3
         with:
-          version: ${{ steps.release.outputs.version }}
+          version: ${{ steps.release.outputs.docs-version }}
           token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
 
   beta:

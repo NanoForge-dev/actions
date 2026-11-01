@@ -48,7 +48,7 @@ The release flow is unchanged from v2:
 1. **Release PR** (`release-pr.yml`): a `workflow_dispatch` takes a group, packages, a version and dry-run.
    - [`release-pr`](#release-pr) bumps the versions, writes the changelogs and opens a `releases/*` PR.
    - When no version is given, it is resolved from the conventional commits since the tag of the current version (built with `tagFormat`; the whole history when that tag doesn't exist), on the paths of the released packages: a breaking change (`!` or `BREAKING CHANGE:`) bumps the major version, `feat` the minor, `fix` and `perf` the patch. A shared group is bumped once, an independent group per package. With no such commit the run fails: give a version to release anyway.
-2. **Release:** when that PR is merged, [`release`](#release) publishes on npm every package whose `package.json` version changed. It then creates the tag(s) and GitHub release(s), and the docs are synced.
+2. **Release:** when that PR is merged, [`release`](#release) publishes on npm every package whose `package.json` version changed. It then creates the tag(s) and GitHub release(s), and the docs are synced when the docs group was released. Merge release PRs with "Squash and merge" or a merge commit: with "Rebase and merge", `HEAD^1` already holds the new versions and nothing is released.
 3. **Beta:** any other merged PR publishes a beta of the groups with `betaOnMerge`.
 4. **Alpha:** a `workflow_dispatch` on a feature branch publishes an alpha.
 
@@ -77,20 +77,20 @@ The release flow is unchanged from v2:
 }
 ```
 
-| Group key       | Default                                                                         | Description                                                                                                                                               |
-| --------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`          | (required)                                                                      | Group name, the `{name}` token                                                                                                                            |
-| `packages`      | (required)                                                                      | Packages of the group. A package belongs to one group at most                                                                                             |
-| `mode`          | `all`                                                                           | Which packages the dispatch may release. `all`: the whole group (leave `packages` empty). `single`: exactly one. `some`: any subset, and empty means all  |
-| `versioning`    | `shared`                                                                        | `shared`: one version (the highest current one, bumped), one tag and one GitHub release. `independent`: each package has its own version, tag and release |
-| `npm`           | `true`                                                                          | Publish the non-private packages on npm                                                                                                                   |
-| `githubRelease` | `true`                                                                          | Create a GitHub release, else only a tag                                                                                                                  |
-| `latest`        | `true` if shared                                                                | Mark the GitHub release as latest                                                                                                                         |
-| `tagFormat`     | `{version}` / `{package}@{version}`                                             | Tag of a release. The same format finds the previous tag for the auto version                                                                             |
-| `branchFormat`  | `releases/{name}@{version}` / `releases/{name}/{run}`                           | Release branch. It must start with `releases/`                                                                                                            |
-| `commitFormat`  | `chore({name}): release {name}@{version}` / `chore({name}): release {packages}` | Commit message and PR title                                                                                                                               |
-| `majorTag`      | `false`                                                                         | Also move `v<major>` to the release                                                                                                                       |
-| `betaOnMerge`   | `false`                                                                         | Publish a beta when a non-release PR is merged                                                                                                            |
+| Group key       | Default                                                                         | Description                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`          | (required)                                                                      | Group name, the `{name}` token                                                                                                                                                                                                    |
+| `packages`      | (required)                                                                      | Packages of the group. A package belongs to one group at most                                                                                                                                                                     |
+| `mode`          | `all`                                                                           | Which packages the dispatch may release. `all`: the whole group (leave `packages` empty). `single`: exactly one. `some`: any subset, and empty means all                                                                          |
+| `versioning`    | `shared`                                                                        | `shared`: one version line for the whole group (its highest current version, bumped, even when only some packages are released), one tag and one GitHub release. `independent`: each package has its own version, tag and release |
+| `npm`           | `true`                                                                          | Publish the non-private packages on npm                                                                                                                                                                                           |
+| `githubRelease` | `true`                                                                          | Create a GitHub release, else only a tag                                                                                                                                                                                          |
+| `latest`        | `true` if shared                                                                | Mark the GitHub release as latest                                                                                                                                                                                                 |
+| `tagFormat`     | `{version}` / `{package}@{version}`                                             | Tag of a release. The same format finds the previous tag for the auto version                                                                                                                                                     |
+| `branchFormat`  | `releases/{name}@{version}` / `releases/{name}/{run}`                           | Release branch. It must start with `releases/`                                                                                                                                                                                    |
+| `commitFormat`  | `chore({name}): release {name}@{version}` / `chore({name}): release {packages}` | Commit message and PR title                                                                                                                                                                                                       |
+| `majorTag`      | `false`                                                                         | Also move `v<major>` to the release                                                                                                                                                                                               |
+| `betaOnMerge`   | `false`                                                                         | Publish a beta when a non-release PR is merged                                                                                                                                                                                    |
 
 Tokens:
 
@@ -100,7 +100,9 @@ Tokens:
 - `{packages}`: the `name@version` list.
 - `{run}`: the run id.
 
-`docs` keys: `category` (required), `references` (`false`) and `referencesPath` (`docs/references`).
+`docs` keys: `group` (the first group; only its releases sync the docs), `category` (required), `references` (`false`) and `referencesPath` (`docs/references`).
+
+Two groups can't share a tag format unless it holds `{name}` or `{package}`, since their tags would collide. In an independent group with no given version, packages with no feat, fix or breaking commit are skipped.
 
 ## Reusable workflows
 
@@ -173,18 +175,18 @@ Outputs: `branch`, `version` (when every package gets the same version), `pull-r
 
 ### `release`
 
-Finds the packages of the config whose version changed between `HEAD^1` and `HEAD`. It publishes them on npm in dependency order (skipping private, `npm: false` and already published ones), then creates the tags and GitHub releases. The changelog comes from the package, or from the root for a shared release of several packages. It does nothing when no version changed.
+Finds the packages of the config whose version changed between `HEAD^1` and `HEAD`. It publishes them on npm in dependency order (skipping private, `npm: false` and already published ones), then creates the tags and GitHub releases. The changelog comes from the package, or from the root for a shared release of several packages. It does nothing when no version changed. A tag or release that already exists (a re-run) only warns; any other failure, including moving `v<major>`, fails the job.
 
 | Input                               | Default | Description                   |
 | ----------------------------------- | ------- | ----------------------------- |
 | `npm-token`                         |         | npm token (`NODE_AUTH_TOKEN`) |
 | `config`, `dry-run`, `github-token` |         |                               |
 
-Outputs: `released`, `version`, `tag` (of the first release), `tags`, `packages` (JSON).
+Outputs: `released`, `version`, `tag` (of the first release), `tags`, `packages` (JSON), `docs-version` (the docs group's version, empty when it wasn't released).
 
 ### `prerelease`
 
-Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm under the channel's dist-tag, and deprecates the older ones. An alpha bump is committed to its feature branch, so the next alpha counts from it.
+Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm under the channel's dist-tag, and deprecates the older ones. Private packages and groups with `npm: false` are skipped. An alpha bump is committed to its feature branch, so the next alpha counts from it.
 
 | Input                                            | Default | Description                                                                      |
 | ------------------------------------------------ | ------- | -------------------------------------------------------------------------------- |
@@ -252,7 +254,7 @@ pnpm build       # bundles src/*/index.ts into dist/
 
 To run an action locally, set its inputs as `INPUT_<NAME>` env vars, for example `INPUT_DRY_RUN=true bun dist/release-pr/index.js`.
 
-This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag.
+This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag onto commits that change workflows may need a token with the workflow permission: `self-release.yml` uses `NANOFORGE_BOT_TOKEN` when it is set, and the job fails if the move fails.
 
 ## Links
 

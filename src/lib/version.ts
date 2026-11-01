@@ -5,6 +5,9 @@ import { commitMessages, tagExists } from "./git";
 
 export type Bump = "major" | "minor" | "patch";
 
+/** No feat, fix or breaking commit since the last release. */
+export class NothingToReleaseError extends Error {}
+
 const ORDER: Bump[] = ["patch", "minor", "major"];
 const HEADER = /^(?<type>\w+)(?:\([^)]*\))?(?<breaking>!)?: /;
 
@@ -58,7 +61,7 @@ export const resolveNextVersion = async (
   const since = (await tagExists(tagName)) ? tagName : undefined;
   const bump = highestBump(await commitMessages(since, paths));
   if (!bump)
-    throw new Error(
+    throw new NothingToReleaseError(
       `No feat, fix or breaking commit since ${since ?? "the first commit"} in ${paths.join(", ")}: give a version to release anyway`,
     );
   return { version: bumpVersion(current, bump), bump, since };

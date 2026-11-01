@@ -26,6 +26,8 @@ export interface ReleaseGroup {
 }
 
 export interface DocsConfig {
+  /** Group whose releases publish the docs (default: the first group) */
+  group: string;
   category: string;
   references: boolean;
   referencesPath: string;
@@ -78,7 +80,7 @@ const GROUP_KEYS = [
   "majorTag",
   "betaOnMerge",
 ];
-const DOCS_KEYS = ["category", "references", "referencesPath"];
+const DOCS_KEYS = ["group", "category", "references", "referencesPath"];
 
 /** Typos (`betaOnmerge`) would silently fall back to a default: refuse them. */
 const assertKnownKeys = (obj: Raw, keys: string[], where: string) => {
@@ -152,12 +154,29 @@ export const parseConfig = (raw: unknown): NanoforgeConfig => {
     }
   }
 
+  for (const group of groups) {
+    const clash = groups.find(
+      (other) =>
+        other !== group &&
+        other.tagFormat === group.tagFormat &&
+        !/\{(name|package)\}/.test(group.tagFormat),
+    );
+    if (clash)
+      throw new Error(
+        `Invalid ${CONFIG_PATH}: groups "${group.name}" and "${clash.name}" share the tag format "${group.tagFormat}": add {name} to one of them`,
+      );
+  }
+
   if (raw.docs === undefined) return { groups };
   if (!isObject(raw.docs)) throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
+  const docsGroup = read(raw.docs, "group", "docs", isString, (groups[0] as ReleaseGroup).name);
+  if (!groups.some((group) => group.name === docsGroup))
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
   return {
     groups,
     docs: {
+      group: docsGroup,
       category: read(raw.docs, "category", "docs", isString),
       references: read(raw.docs, "references", "docs", isBoolean, false),
       referencesPath: read(raw.docs, "referencesPath", "docs", isString, "docs/references"),
