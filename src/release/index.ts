@@ -153,8 +153,9 @@ const main = async () => {
     return;
   }
 
-  const { published, skipped } = await publishToNpm(released, dry);
+  // Plan the tags first: a format error must stop the release before anything reaches npm.
   const tagged = await planTags(released);
+  const { published, skipped } = await publishToNpm(released, dry);
   await createTags(tagged, dry);
 
   const first = tagged[0] as Tagged;

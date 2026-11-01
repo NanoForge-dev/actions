@@ -6,8 +6,15 @@ import { type NanoforgeConfig, groupOf, loadConfig } from "../lib/config";
 import { commitAll, push } from "../lib/git";
 import { defaultBranch } from "../lib/github";
 import { getBoolean, getList, getString } from "../lib/inputs";
+import { sortReleaseTree } from "../lib/release-tree";
 import { writeSummary } from "../lib/summary";
-import { findPackages, listWorkspace, rootPath, setVersion } from "../lib/workspace";
+import {
+  type WorkspacePackage,
+  findPackages,
+  listWorkspace,
+  rootPath,
+  setVersion,
+} from "../lib/workspace";
 import {
   type Version,
   fetchDevVersions,
@@ -57,7 +64,7 @@ const main = async () => {
   const versions: string[] = [];
   const deprecated: string[] = [];
 
-  const planned = [];
+  const planned: { pkg: WorkspacePackage; newVersion: string; toDeprecate: string[] }[] = [];
   for (const pkg of findPackages(await listWorkspace(), names)) {
     if (pkg.private || !groupOf(config, pkg.name)?.npm) {
       info(`Skipping ${pkg.name}: ${pkg.private ? "private" : "npm is disabled for its group"}`);
@@ -74,7 +81,11 @@ const main = async () => {
     planned.push({ pkg, newVersion, toDeprecate });
   }
 
-  for (const { pkg, newVersion, toDeprecate } of planned) {
+  // Dependencies first, as in a release, so a dependent never points at a version that isn't on npm.
+  const ordered = sortReleaseTree(
+    planned.map((plan) => ({ ...plan, name: plan.pkg.name, dependsOn: plan.pkg.dependsOn })),
+  ).flat();
+  for (const { pkg, newVersion, toDeprecate } of ordered) {
     versions.push(`${pkg.name}@${newVersion}`);
     deprecated.push(...toDeprecate.map((version) => `\`${pkg.name}@${version}\``));
 
@@ -98,7 +109,7 @@ const main = async () => {
   // commit, and the default branch never gets a pre-release version, so neither is committed.
   if (channel === "beta" || onDefaultBranch) info("The pre-release version is not committed");
   else if (dry) info("[DRY] Would commit and push the version bump");
-  else if (await commitAll(`chore(release): ${channel} ${names.join(", ")}`))
+  else if (await commitAll(`chore(release): ${channel} ${versions.join(", ")}`))
     await push(".", undefined, process.env.GITHUB_TOKEN);
 
   setOutput("versions", JSON.stringify(versions));

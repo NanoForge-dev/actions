@@ -680,6 +680,15 @@ var parseGroup = (raw, index) => {
     majorTag: read(raw, "majorTag", where, isBoolean, false),
     betaOnMerge: read(raw, "betaOnMerge", where, isBoolean, false)
   };
+  const tag = group.tagFormat;
+  if (!tag.includes("{version}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {version}`);
+  if (/\{(packages|run)\}/.test(tag))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can't use {packages} or {run}`);
+  if (!shared && !tag.includes("{package}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {package} (independent versioning)`);
+  if (shared && tag.includes("{package}") && group.mode !== "single" && group.packages.length > 1)
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can only use {package} in a shared group that releases one package (mode single)`);
   if (!group.branchFormat.startsWith("releases/"))
     throw new Error(`Invalid ${CONFIG_PATH}: ${where}.branchFormat must start with "releases/"`);
   return group;
@@ -713,8 +722,11 @@ var parseConfig = (raw) => {
     throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
   const docsGroup = read(raw.docs, "group", "docs", isString, groups[0].name);
-  if (!groups.some((group) => group.name === docsGroup))
+  const docsOf = groups.find((group) => group.name === docsGroup);
+  if (!docsOf)
     throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
+  if (docsOf.versioning !== "shared")
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" must use shared versioning`);
   return {
     groups,
     docs: {

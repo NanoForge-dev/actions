@@ -3385,6 +3385,15 @@ var parseGroup = (raw, index) => {
     majorTag: read(raw, "majorTag", where, isBoolean, false),
     betaOnMerge: read(raw, "betaOnMerge", where, isBoolean, false)
   };
+  const tag = group.tagFormat;
+  if (!tag.includes("{version}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {version}`);
+  if (/\{(packages|run)\}/.test(tag))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can't use {packages} or {run}`);
+  if (!shared && !tag.includes("{package}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {package} (independent versioning)`);
+  if (shared && tag.includes("{package}") && group.mode !== "single" && group.packages.length > 1)
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can only use {package} in a shared group that releases one package (mode single)`);
   if (!group.branchFormat.startsWith("releases/"))
     throw new Error(`Invalid ${CONFIG_PATH}: ${where}.branchFormat must start with "releases/"`);
   return group;
@@ -3418,8 +3427,11 @@ var parseConfig = (raw) => {
     throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
   const docsGroup = read(raw.docs, "group", "docs", isString, groups[0].name);
-  if (!groups.some((group) => group.name === docsGroup))
+  const docsOf = groups.find((group) => group.name === docsGroup);
+  if (!docsOf)
     throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
+  if (docsOf.versioning !== "shared")
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" must use shared versioning`);
   return {
     groups,
     docs: {
@@ -7438,6 +7450,7 @@ var bumpVersion = (version, bump) => {
   return next;
 };
 var highestVersion = (versions) => versions.reduce((max, version) => import_semver.default.gt(version, max) ? version : max);
+var lowestVersion = (versions) => versions.reduce((min, version) => import_semver.default.lt(version, min) ? version : min);
 var assertVersion = (version) => {
   if (!import_semver.default.valid(version))
     throw new Error(`"${version}" is not a valid semver version`);
@@ -7447,7 +7460,7 @@ var resolveNextVersion = async (current, tag, paths) => {
   const tagName = formatString(tag.format, {
     name: tag.name,
     package: tag.package,
-    version: current,
+    version: tag.version ?? current,
     packages: "",
     run: ""
   });
@@ -7493,10 +7506,12 @@ var planShared = async (group, pkgs, groupPkgs, forced) => {
   if (forced)
     return pkgs.map((pkg) => ({ pkg, version: forced, reason: "given version" }));
   const current = highestVersion(groupPkgs.map((pkg) => pkg.version));
+  const oldest = lowestVersion(pkgs.map((pkg) => pkg.version));
   const { version, bump, since } = await resolveNextVersion(current, {
     format: group.tagFormat,
     name: group.name,
-    package: pkgs.length === 1 ? pkgs[0]?.name : undefined
+    package: pkgs.length === 1 ? pkgs[0]?.name : undefined,
+    version: oldest
   }, pkgs.map((pkg) => repoRelative(pkg.path)));
   const reason = `${bump} bump since ${since ?? "the first commit"}`;
   return pkgs.map((pkg) => ({ pkg, version, reason }));

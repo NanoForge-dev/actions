@@ -12,6 +12,7 @@ import {
   NothingToReleaseError,
   assertVersion,
   highestVersion,
+  lowestVersion,
   resolveNextVersion,
 } from "../lib/version";
 import {
@@ -36,15 +37,18 @@ const planShared = async (
   forced: string,
 ): Promise<PlannedRelease[]> => {
   if (forced) return pkgs.map((pkg) => ({ pkg, version: forced, reason: "given version" }));
-  // The whole group shares one version line: start from its highest version, so releasing a subset
-  // never reuses a version (and a tag) another subset already took.
+  // The whole group shares one version line: bump its highest version, so releasing a subset never
+  // reuses a version (and a tag) another subset already took. Count the commits from the oldest release
+  // among the selected packages, so none of their unreleased commits is missed.
   const current = highestVersion(groupPkgs.map((pkg) => pkg.version));
+  const oldest = lowestVersion(pkgs.map((pkg) => pkg.version));
   const { version, bump, since } = await resolveNextVersion(
     current,
     {
       format: group.tagFormat,
       name: group.name,
       package: pkgs.length === 1 ? pkgs[0]?.name : undefined,
+      version: oldest,
     },
     pkgs.map((pkg) => repoRelative(pkg.path)),
   );

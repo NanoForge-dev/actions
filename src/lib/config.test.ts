@@ -66,6 +66,39 @@ describe("parseConfig", () => {
       },
       /share the tag format/,
     ],
+    [{ groups: [{ name: "g", packages: ["a"], tagFormat: "latest" }] }, /must contain \{version\}/],
+    [
+      { groups: [{ name: "g", packages: ["a"], tagFormat: "{packages}@{version}" }] },
+      /\{packages\} or \{run\}/,
+    ],
+    [
+      {
+        groups: [
+          {
+            name: "g",
+            packages: ["a", "b"],
+            versioning: "independent",
+            tagFormat: "{name}@{version}",
+          },
+        ],
+      },
+      /must contain \{package\}/,
+    ],
+    [
+      {
+        groups: [
+          { name: "g", packages: ["a", "b"], mode: "some", tagFormat: "{package}@{version}" },
+        ],
+      },
+      /one package/,
+    ],
+    [
+      {
+        groups: [{ name: "g", packages: ["a"], versioning: "independent" }],
+        docs: { category: "cli" },
+      },
+      /shared versioning/,
+    ],
     [
       { groups: [{ name: "g", packages: ["a"] }], docs: { category: "cli", group: "x" } },
       /not a group/,

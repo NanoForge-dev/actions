@@ -78,7 +78,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.merge_commit_sha }}
-          fetch-depth: 2
+          # Full history and tags: HEAD^1 for the release, and the repo's references script may read tags.
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Export the prepare env
         uses: NanoForge-dev/actions/export-env@v3

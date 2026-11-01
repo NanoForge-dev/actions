@@ -127,6 +127,20 @@ const parseGroup = (raw: unknown, index: number): ReleaseGroup => {
     majorTag: read(raw, "majorTag", where, isBoolean, false),
     betaOnMerge: read(raw, "betaOnMerge", where, isBoolean, false),
   };
+  // Tags are created after the npm publish: refuse formats that can't give one valid, distinct tag per release.
+  const tag = group.tagFormat;
+  if (!tag.includes("{version}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {version}`);
+  if (/\{(packages|run)\}/.test(tag))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can't use {packages} or {run}`);
+  if (!shared && !tag.includes("{package}"))
+    throw new Error(
+      `Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {package} (independent versioning)`,
+    );
+  if (shared && tag.includes("{package}") && group.mode !== "single" && group.packages.length > 1)
+    throw new Error(
+      `Invalid ${CONFIG_PATH}: ${where}.tagFormat can only use {package} in a shared group that releases one package (mode single)`,
+    );
   // The release workflow only runs for merged releases/* branches.
   if (!group.branchFormat.startsWith("releases/"))
     throw new Error(`Invalid ${CONFIG_PATH}: ${where}.branchFormat must start with "releases/"`);
@@ -171,8 +185,11 @@ export const parseConfig = (raw: unknown): NanoforgeConfig => {
   if (!isObject(raw.docs)) throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
   const docsGroup = read(raw.docs, "group", "docs", isString, (groups[0] as ReleaseGroup).name);
-  if (!groups.some((group) => group.name === docsGroup))
-    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
+  const docsOf = groups.find((group) => group.name === docsGroup);
+  if (!docsOf) throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
+  // The docs are published under one version: the group must share it.
+  if (docsOf.versioning !== "shared")
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" must use shared versioning`);
   return {
     groups,
     docs: {

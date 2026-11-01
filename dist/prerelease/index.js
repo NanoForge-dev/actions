@@ -3386,6 +3386,15 @@ var parseGroup = (raw, index) => {
     majorTag: read(raw, "majorTag", where, isBoolean, false),
     betaOnMerge: read(raw, "betaOnMerge", where, isBoolean, false)
   };
+  const tag = group.tagFormat;
+  if (!tag.includes("{version}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {version}`);
+  if (/\{(packages|run)\}/.test(tag))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can't use {packages} or {run}`);
+  if (!shared && !tag.includes("{package}"))
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat must contain {package} (independent versioning)`);
+  if (shared && tag.includes("{package}") && group.mode !== "single" && group.packages.length > 1)
+    throw new Error(`Invalid ${CONFIG_PATH}: ${where}.tagFormat can only use {package} in a shared group that releases one package (mode single)`);
   if (!group.branchFormat.startsWith("releases/"))
     throw new Error(`Invalid ${CONFIG_PATH}: ${where}.branchFormat must start with "releases/"`);
   return group;
@@ -3419,8 +3428,11 @@ var parseConfig = (raw) => {
     throw new Error(`Invalid ${CONFIG_PATH}: docs must be an object`);
   assertKnownKeys(raw.docs, DOCS_KEYS, "docs");
   const docsGroup = read(raw.docs, "group", "docs", isString, groups[0].name);
-  if (!groups.some((group) => group.name === docsGroup))
+  const docsOf = groups.find((group) => group.name === docsGroup);
+  if (!docsOf)
     throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" is not a group`);
+  if (docsOf.versioning !== "shared")
+    throw new Error(`Invalid ${CONFIG_PATH}: docs.group "${docsGroup}" must use shared versioning`);
   return {
     groups,
     docs: {
@@ -7233,6 +7245,38 @@ var getBoolean = (name, fallback) => {
 var getList = (name) => parseList(readInput(name));
 var parseList = (value) => value.split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
 
+// src/lib/release-tree.ts
+var sortReleaseTree = (nodes) => {
+  const names = new Set(nodes.map((node) => node.name));
+  const released = new Set;
+  const tree = [];
+  let remaining = nodes;
+  while (remaining.length) {
+    const batch = remaining.filter((node) => node.dependsOn.every((dep) => !names.has(dep) || released.has(dep)));
+    if (!batch.length)
+      throw new Error(`Unresolvable dependency order among: ${remaining.map((node) => node.name).join(", ")}`);
+    for (const node of batch)
+      released.add(node.name);
+    tree.push(batch);
+    remaining = remaining.filter((node) => !released.has(node.name));
+  }
+  return tree;
+};
+var withDependencies = (nodes, roots) => {
+  const byName = new Map(nodes.map((node) => [node.name, node]));
+  const needed = new Set;
+  const visit = (name) => {
+    if (needed.has(name) || !byName.has(name))
+      return;
+    needed.add(name);
+    for (const dep of byName.get(name)?.dependsOn ?? [])
+      visit(dep);
+  };
+  for (const root of roots)
+    visit(root);
+  return nodes.filter((node) => needed.has(node.name));
+};
+
 // src/lib/summary.ts
 var writeSummary = async (title, dry, sections) => {
   const result = summary.addHeading(title);
@@ -7384,7 +7428,8 @@ var main = async () => {
     await setVersion(pkg.path, newVersion);
     planned.push({ pkg, newVersion, toDeprecate });
   }
-  for (const { pkg, newVersion, toDeprecate } of planned) {
+  const ordered = sortReleaseTree(planned.map((plan) => ({ ...plan, name: plan.pkg.name, dependsOn: plan.pkg.dependsOn }))).flat();
+  for (const { pkg, newVersion, toDeprecate } of ordered) {
     versions.push(`${pkg.name}@${newVersion}`);
     deprecated.push(...toDeprecate.map((version) => `\`${pkg.name}@${version}\``));
     if (dry) {
@@ -7404,7 +7449,7 @@ var main = async () => {
     info("The pre-release version is not committed");
   else if (dry)
     info("[DRY] Would commit and push the version bump");
-  else if (await commitAll(`chore(release): ${channel} ${names.join(", ")}`))
+  else if (await commitAll(`chore(release): ${channel} ${versions.join(", ")}`))
     await push(".", undefined, process5.env.GITHUB_TOKEN);
   setOutput("versions", JSON.stringify(versions));
   await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [

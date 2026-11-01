@@ -86,6 +86,21 @@ describe("resolveNextVersion (real git repo)", () => {
     expect(result).toEqual({ version: "1.1.0", bump: "minor", since: undefined });
   });
 
+  test("a package behind its group counts from its own last release", async () => {
+    // a released at 1.2.0, then feat(a) unreleased, then b released alone at 1.5.0, then fix(a).
+    await $`git tag 1.2.0`;
+    await commit("packages/a/feat", "feat(a): unreleased feature");
+    await commit("packages/b/fix", "fix(b): b only");
+    await $`git tag 1.5.0`;
+    await commit("packages/a/fix", "fix(a): later fix");
+    const result = await resolveNextVersion(
+      "1.5.0",
+      { format: "{version}", name: "g", version: "1.2.0" },
+      ["packages/a"],
+    );
+    expect(result).toEqual({ version: "1.6.0", bump: "minor", since: "1.2.0" });
+  });
+
   test("fails when nothing asks for a release", async () => {
     await commit("packages/c/z", "chore(c): nothing");
     await $`git tag c-1.0.0`;

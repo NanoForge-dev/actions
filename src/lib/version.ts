@@ -37,24 +37,27 @@ export const bumpVersion = (version: string, bump: Bump): string => {
 export const highestVersion = (versions: string[]): string =>
   versions.reduce((max, version) => (semver.gt(version, max) ? version : max));
 
+export const lowestVersion = (versions: string[]): string =>
+  versions.reduce((min, version) => (semver.lt(version, min) ? version : min));
+
 export const assertVersion = (version: string): string => {
   if (!semver.valid(version)) throw new Error(`"${version}" is not a valid semver version`);
   return version;
 };
 
 /**
- * Next version from the commits since the tag of `current` (all history if that tag is missing),
- * limited to `paths`. Throws when no commit asks for a release.
+ * Bumps `current` from the commits since the tag of `tag.version` (default `current`; all history if
+ * that tag is missing), limited to `paths`. Throws NothingToReleaseError when no commit asks for a release.
  */
 export const resolveNextVersion = async (
   current: string,
-  tag: { format: string; name: string; package?: string },
+  tag: { format: string; name: string; package?: string; version?: string },
   paths: string[],
 ): Promise<{ version: string; bump: Bump; since?: string }> => {
   const tagName = formatString(tag.format, {
     name: tag.name,
     package: tag.package,
-    version: current,
+    version: tag.version ?? current,
     packages: "",
     run: "",
   });
