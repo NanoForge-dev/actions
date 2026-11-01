@@ -3482,11 +3482,16 @@ var commitAll = async (message, cwd = ".") => {
   await $`git ${BOT} commit -m ${message} --no-verify`.cwd(cwd);
   return true;
 };
-var push = async (cwd = ".", branch) => {
+var authArgs = (token) => token ? [
+  "-c",
+  `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`
+] : [];
+var push = async (cwd = ".", branch, token) => {
+  const auth = authArgs(token);
   if (branch)
-    await $`git push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(cwd);
+    await $`git ${auth} push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(cwd);
   else
-    await $`git push --no-verify`.cwd(cwd);
+    await $`git ${auth} push --no-verify`.cwd(cwd);
 };
 var headSha = async () => (await $`git rev-parse HEAD`.text()).trim();
 var tagExists = async (tag) => (await $`git rev-parse --verify --quiet ${`refs/tags/${tag}`}`.nothrow().quiet()).exitCode === 0;
@@ -7521,7 +7526,7 @@ var main = async () => {
   } else {
     if (!await commitAll(message))
       throw new Error("Nothing changed: the versions are already set");
-    await push(".", branch);
+    await push(".", branch, process5.env.GITHUB_TOKEN);
     url = await createPullRequest(branch, message, `Release of group \`${group.name}\`:
 
 ${lines.map((line) => `- ${line}`).join(`

@@ -32,18 +32,20 @@ jobs:
 
 A single action can also be used on its own: `uses: NanoForge-dev/actions/release@v3`.
 
-- `@v3` follows the latest `3.x.y` release, and `@3.0.0` pins one release.
+- `@v3` follows the latest `3.x.y` release. Pinning a workflow to `@3.0.0` pins only that workflow file: the actions it calls are always `@v3`, so a repo that needs a fixed release must call the actions itself at that tag.
 - Each repository keeps a `./.github/actions/prepare` action. The workflows run it before any release step. It calls [`setup`](#setup) and adds what the repo needs (emsdk, a build, env vars).
-- The workflows use these secrets, passed with `secrets: inherit`:
+- The workflows declare the secrets they use, and callers pass exactly those (never `secrets: inherit`, which would hand every secret of the repo to the code behind `v3`):
   - `NPM_PUBLISH_TOKEN`: npm publishing.
   - `NANOFORGE_BOT_TOKEN`: pushes to `NanoForge-dev/docs` and `NanoForge-dev/cloud-iac`.
   - `NF_REGISTRY_KEY`: the NanoForge registry.
+- Checkouts don't keep credentials (`persist-credentials: false`): a token is only given to the command that pushes, never stored in `.git/config` while dependencies install.
+- Whoever can move the `v3` tag runs code with these secrets in every repo. Protect `main` (required review) and the `v*` and version tags (a ruleset that lets only the release update them).
 
 ### Release flow
 
 The release flow is unchanged from v2:
 
-1. **Pre-Release:** a `workflow_dispatch` takes a group, packages, a version and dry-run.
+1. **Release PR** (`release-pr.yml`): a `workflow_dispatch` takes a group, packages, a version and dry-run.
    - [`release-pr`](#release-pr) bumps the versions, writes the changelogs and opens a `releases/*` PR.
    - When no version is given, it is resolved from the conventional commits since the tag of the current version (built with `tagFormat`; the whole history when that tag doesn't exist), on the paths of the released packages: a breaking change (`!` or `BREAKING CHANGE:`) bumps the major version, `feat` the minor, `fix` and `perf` the patch. A shared group is bumped once, an independent group per package. With no such commit the run fails: give a version to release anyway.
 2. **Release:** when that PR is merged, [`release`](#release) publishes on npm every package whose `package.json` version changed. It then creates the tag(s) and GitHub release(s), and the docs are synced.
@@ -104,19 +106,42 @@ Tokens:
 
 Callers are in [`templates/workflows`](templates/workflows).
 
-| Workflow                  | Trigger in the caller                               | Inputs                                                   | Outputs                              |
-| ------------------------- | --------------------------------------------------- | -------------------------------------------------------- | ------------------------------------ |
-| `release-pr.yml`          | `workflow_dispatch`                                 | `group`, `packages`, `version`, `dry-run`, `prepare-env` | `pull-request`                       |
-| `release.yml`             | `pull_request: closed` on `main`                    | `prepare-env`                                            | `released`, `version`, `tag`, `tags` |
-| `alpha-release.yml`       | `workflow_dispatch` (not on the default branch)     | `packages`, `dry-run`, `prepare-env`                     |                                      |
-| `nf-registry-release.yml` | `workflow_dispatch`                                 | `package`, `exclude`, `path`, `dry-run`, `prepare-env`   |                                      |
-| `pr-triage.yml`           | `pull_request_target`                               |                                                          |                                      |
-| `issue-triage.yml`        | `issues: opened`                                    |                                                          |                                      |
-| `label-sync.yml`          | `push` of `.github/labels.yml`, `workflow_dispatch` |                                                          |                                      |
+| Workflow                  | Trigger in the caller                               | Inputs                                                   | Outputs                                          |
+| ------------------------- | --------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------ |
+| `release-pr.yml`          | `workflow_dispatch`                                 | `group`, `packages`, `version`, `dry-run`, `prepare-env` | `pull-request`                                   |
+| `release.yml`             | `pull_request: closed` on `main`                    | `prepare-env`                                            | `released`, `version`, `tag`, `tags`, `packages` |
+| `alpha-release.yml`       | `workflow_dispatch` (not on the default branch)     | `packages`, `dry-run`, `prepare-env`                     |                                                  |
+| `nf-registry-release.yml` | `workflow_dispatch`                                 | `package`, `exclude`, `path`, `dry-run`, `prepare-env`   |                                                  |
+| `pr-triage.yml`           | `pull_request_target`                               |                                                          |                                                  |
+| `issue-triage.yml`        | `issues: opened`                                    |                                                          |                                                  |
+| `label-sync.yml`          | `push` of `.github/labels.yml`, `workflow_dispatch` |                                                          |                                                  |
 
-`prepare-env` takes env vars for the prepare action, one `KEY=VALUE` per line (e.g. the editor's `PUBLIC_*` build vars).
+`prepare-env` takes env vars for the prepare action, one static `KEY=VALUE` per line (e.g. the editor's `PUBLIC_*` build vars). Keys that change how later steps run (`NODE_OPTIONS`, `PATH`, `LD_*`, `GITHUB_*`...) are refused. Never pass PR-controlled text through it.
 
-Deploy jobs (Docker images) stay in the caller's `release.yml`. They run after the reusable job with `needs: [release]` and `if: needs.release.outputs.released == 'true'`.
+### Deploy jobs
+
+Deploy jobs (Docker images) stay in the caller's `release.yml`. They run after the reusable job:
+
+```yaml
+docker:
+  name: Push image
+  runs-on: ubuntu-latest
+  needs: [release]
+  if: needs.release.outputs.released == 'true'
+  permissions:
+    contents: read
+    packages: write
+  steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: NanoForge-dev/actions/docker-release@v3
+      with:
+        image: ${{ github.repository }}
+        version: ${{ needs.release.outputs.version }}
+        values-file: kubernetes/nanoforge/<app>-override.yaml
+        cloud-iac-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+```
 
 ## Actions
 
@@ -173,12 +198,12 @@ Output: `versions`.
 
 Publishes NanoForge components and systems (`nanoforge.manifest.json`) to the NanoForge registry with `nf publish`, dependencies first. It needs the `nf` CLI, logged in.
 
-| Input     | Default    | Description                                                                 |
-| --------- | ---------- | --------------------------------------------------------------------------- |
-| `path`    | `packages` | Directory holding the packages                                              |
-| `package` |            | One package to release with its dependencies. Empty or `all`: every package |
-| `exclude` |            | Packages not to release, unless a released package needs them               |
-| `dry-run` | `false`    |                                                                             |
+| Input     | Default    | Description                                                                   |
+| --------- | ---------- | ----------------------------------------------------------------------------- |
+| `path`    | `packages` | Directory holding the packages                                                |
+| `package` | `all`      | One package to release with its dependencies. `all` (or empty): every package |
+| `exclude` |            | Packages not to release, unless a released package needs them                 |
+| `dry-run` | `false`    |                                                                               |
 
 ### `docs-sync`
 
@@ -186,16 +211,17 @@ Copies `docs/docs/` and `docs/guides/` of the source repository (and the API ref
 
 The config is only read when `category` is empty: with a `category` input, `references` and `references-path` default to `false` and `docs/references`.
 
-| Input             | Default               | Description                                                        |
-| ----------------- | --------------------- | ------------------------------------------------------------------ |
-| `repository`      | this repo's name      | Commit message scope                                               |
-| `category`        | `docs.category`       | Docs category (`engine`, `cli`, `editor`...)                       |
-| `src-path`        | `.`                   | Source repository                                                  |
-| `docs-path`       | `docs-dist`           | Checked-out docs repository                                        |
-| `references`      | `docs.references`     | Generate the references with `pnpm run docs`                       |
-| `references-path` | `docs.referencesPath` | References directory                                               |
-| `version`         |                       | Released version: the references folder (required with references) |
-| `config`          |                       |                                                                    |
+| Input             | Default               | Description                                                                 |
+| ----------------- | --------------------- | --------------------------------------------------------------------------- |
+| `repository`      | this repo's name      | Commit message scope                                                        |
+| `category`        | `docs.category`       | Docs category (`engine`, `cli`, `editor`...)                                |
+| `src-path`        | `.`                   | Source repository                                                           |
+| `docs-path`       | `docs-dist`           | Checked-out docs repository                                                 |
+| `references`      | `docs.references`     | Generate the references with `pnpm run docs`                                |
+| `references-path` | `docs.referencesPath` | References directory                                                        |
+| `version`         |                       | Released version: the references folder (required with references)          |
+| `token`           |                       | Token that pushes to the docs repository. Empty: its checkout's credentials |
+| `config`          |                       |                                                                             |
 
 ### `docker-release`
 

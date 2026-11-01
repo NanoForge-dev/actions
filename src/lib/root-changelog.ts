@@ -2,7 +2,7 @@ import { $, file, write } from "bun";
 import { join } from "path";
 
 import { readPackageChangelog } from "./changelog";
-import type { WorkspacePackage } from "./workspace";
+import { type WorkspacePackage } from "./workspace";
 
 export const runPackageChangelog = async (name: string): Promise<void> => {
   await $`pnpm --filter=${name} run --if-present release --skip-automatic-bump --skip-tag`;

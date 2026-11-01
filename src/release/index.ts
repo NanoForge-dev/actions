@@ -53,7 +53,9 @@ const publishToNpm = async (released: Released[], dry: boolean) => {
   });
 
   const tree = sortReleaseTree(toPublish.map(({ pkg }) => pkg));
-  for (const batch of tree) {
+  for (const [index, batch] of tree.entries()) {
+    // Only a later batch needs the packages to be visible on npm.
+    const wait = index < tree.length - 1;
     startGroup(`Publishing ${batch.map((pkg) => `${pkg.name}@${pkg.version}`).join(", ")}`);
     await Promise.all(
       batch.map(async (pkg) => {
@@ -66,7 +68,7 @@ const publishToNpm = async (released: Released[], dry: boolean) => {
         if (dry) info(`[DRY] Would publish ${id}`);
         else {
           await $`pnpm --filter=${pkg.name} publish --provenance --no-git-checks`;
-          await waitUntil(`${id} on npm`, () => isOnNpm(pkg.name, pkg.version));
+          if (wait) await waitUntil(`${id} on npm`, () => isOnNpm(pkg.name, pkg.version));
         }
         published.push(`\`${id}\``);
       }),

@@ -58,6 +58,7 @@
   "engines": {
     "node": "25"
   },
+  "private": true,
   "lint-staged": {
     "**": [
       "prettier --ignore-unknown --write"
@@ -65,6 +66,5 @@
     "src/**/*.ts": [
       "eslint --fix"
     ]
-  },
-  "private": true
+  }
 }

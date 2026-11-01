@@ -3526,11 +3526,16 @@ var commitAll = async (message, cwd = ".") => {
   await $`git ${BOT} commit -m ${message} --no-verify`.cwd(cwd);
   return true;
 };
-var push = async (cwd = ".", branch) => {
+var authArgs = (token) => token ? [
+  "-c",
+  `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`
+] : [];
+var push = async (cwd = ".", branch, token) => {
+  const auth = authArgs(token);
   if (branch)
-    await $`git push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(cwd);
+    await $`git ${auth} push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(cwd);
   else
-    await $`git push --no-verify`.cwd(cwd);
+    await $`git ${auth} push --no-verify`.cwd(cwd);
 };
 var headSha = async () => (await $`git rev-parse HEAD`.text()).trim();
 var tagExists = async (tag) => (await $`git rev-parse --verify --quiet ${`refs/tags/${tag}`}`.nothrow().quiet()).exitCode === 0;
@@ -7382,7 +7387,8 @@ var publishToNpm = async (released, dry) => {
     return false;
   });
   const tree = sortReleaseTree(toPublish.map(({ pkg }) => pkg));
-  for (const batch of tree) {
+  for (const [index, batch] of tree.entries()) {
+    const wait = index < tree.length - 1;
     startGroup(`Publishing ${batch.map((pkg) => `${pkg.name}@${pkg.version}`).join(", ")}`);
     await Promise.all(batch.map(async (pkg) => {
       const id = `${pkg.name}@${pkg.version}`;
@@ -7395,7 +7401,8 @@ var publishToNpm = async (released, dry) => {
         info(`[DRY] Would publish ${id}`);
       else {
         await $3`pnpm --filter=${pkg.name} publish --provenance --no-git-checks`;
-        await waitUntil(`${id} on npm`, () => isOnNpm(pkg.name, pkg.version));
+        if (wait)
+          await waitUntil(`${id} on npm`, () => isOnNpm(pkg.name, pkg.version));
       }
       published.push(`\`${id}\``);
     }));

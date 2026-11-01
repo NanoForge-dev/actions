@@ -5,8 +5,8 @@ inputs:
     description: "Directory holding the packages (nanoforge.manifest.json files)"
     default: "packages"
   package:
-    description: 'Name of one package to release with its dependencies. Empty or "all": every package'
-    default: ""
+    description: 'Name of one package to release with its dependencies. "all" (or empty): every package'
+    default: "all"
   exclude:
     description: "Comma-separated packages not to release, unless another released package needs them"
     default: ""
@@ -17,7 +17,7 @@ runs:
   using: composite
   steps:
     - name: Set up Bun
-      uses: oven-sh/setup-bun@v2
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       with:
         bun-version-file: ${{ github.action_path }}/../.bun-version
     - name: Run nf-registry-release

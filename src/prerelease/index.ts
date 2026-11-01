@@ -57,11 +57,20 @@ const main = async () => {
   const versions: string[] = [];
   const deprecated: string[] = [];
 
+  const planned = [];
   for (const pkg of findPackages(await listWorkspace(), names)) {
-    const existing = await fetchDevVersions(pkg.name, channel);
-    const { newVersion, toDeprecate } = resolveRelease(pkg.version, channel, existing);
+    const { newVersion, toDeprecate } = resolveRelease(
+      pkg.version,
+      channel,
+      await fetchDevVersions(pkg.name, channel),
+    );
     info(`Resolved next ${channel}: ${pkg.name}@${newVersion}`);
+    // Every version is set before any publish, so workspace: dependencies point at the new versions.
     await setVersion(pkg.path, newVersion);
+    planned.push({ pkg, newVersion, toDeprecate });
+  }
+
+  for (const { pkg, newVersion, toDeprecate } of planned) {
     versions.push(`${pkg.name}@${newVersion}`);
     deprecated.push(...toDeprecate.map((version) => `\`${pkg.name}@${version}\``));
 
@@ -85,7 +94,8 @@ const main = async () => {
   // commit, and the default branch never gets a pre-release version, so neither is committed.
   if (channel === "beta" || onDefaultBranch) info("The pre-release version is not committed");
   else if (dry) info("[DRY] Would commit and push the version bump");
-  else if (await commitAll(`chore(release): ${channel} ${names.join(", ")}`)) await push();
+  else if (await commitAll(`chore(release): ${channel} ${names.join(", ")}`))
+    await push(".", undefined, process.env.GITHUB_TOKEN);
 
   setOutput("versions", JSON.stringify(versions));
   await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [
