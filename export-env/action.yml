@@ -1,0 +1,25 @@
+name: "NanoForge export env"
+description: "Exports static build variables (one KEY=VALUE per line) for the next steps. Only public build keys are allowed"
+inputs:
+  env:
+    description: "One KEY=VALUE per line. Keys: NODE_ENV, PUBLIC_*, NEXT_PUBLIC_* or VITE_*"
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Export the env
+      if: inputs.env != ''
+      shell: bash
+      env:
+        EXPORT_ENV: ${{ inputs.env }}
+      # An allowlist, not a denylist: anything else (NODE_OPTIONS, GIT_*, HOME, npm_config_*...) could change
+      # how the later steps that hold tokens run.
+      run: |
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          key="${line%%=*}"
+          if [[ "$line" != *=* || ! "$key" =~ ^(NODE_ENV|(PUBLIC|NEXT_PUBLIC|VITE)_[A-Z0-9_]+)$ ]]; then
+            echo "::error::export-env: key \"$key\" is not allowed (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)"; exit 1
+          fi
+          printf '%s\n' "$line" >> "$GITHUB_ENV"
+        done <<< "$EXPORT_ENV"

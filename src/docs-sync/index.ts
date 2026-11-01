@@ -11,6 +11,10 @@ import { generateDocsConfig } from "./generate/generate-config";
 import { copyReferences, generateReferences } from "./references";
 
 const main = async () => {
+  // Read the token, then drop it from the env so `pnpm run docs` (repo code) never sees it.
+  const docsToken = getString("docs-token") || undefined;
+  delete process.env.INPUT_DOCS_TOKEN;
+
   const srcPath = getString("src-path", ".");
   const docsPath = getString("docs-path", "docs-dist");
   const repository = getString(
@@ -42,7 +46,7 @@ const main = async () => {
   if (
     await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath)
   )
-    await push(docsPath, undefined, getString("token") || undefined);
+    await push(docsPath, undefined, docsToken);
 };
 
 main().catch((error: unknown) => setFailed(error instanceof Error ? error.message : String(error)));

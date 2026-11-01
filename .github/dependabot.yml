@@ -11,6 +11,7 @@ updates:
       - "/nf-registry-release"
       - "/docs-sync"
       - "/docker-release"
+      - "/export-env"
     schedule:
       interval: "weekly"
     labels:

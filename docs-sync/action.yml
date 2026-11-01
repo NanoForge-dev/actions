@@ -22,7 +22,7 @@ inputs:
   version:
     description: "Released version, the folder of the references (the release action's version output)"
     default: ""
-  token:
+  docs-token:
     description: "Token that can push to the docs repository. Empty: the credentials of its checkout"
     default: ""
   config:
@@ -48,4 +48,4 @@ runs:
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
-        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_DOCS_TOKEN: ${{ inputs.docs-token }}

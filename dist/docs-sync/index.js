@@ -587,6 +587,9 @@ var ExitCode;
   ExitCode2[ExitCode2["Success"] = 0] = "Success";
   ExitCode2[ExitCode2["Failure"] = 1] = "Failure";
 })(ExitCode || (ExitCode = {}));
+function setSecret(secret) {
+  issueCommand("add-mask", {}, secret);
+}
 function setOutput(name, value) {
   const filePath = process.env["GITHUB_OUTPUT"] || "";
   if (filePath) {
@@ -775,10 +778,13 @@ var commitAll = async (message, cwd = ".") => {
   await $`git ${BOT} commit -m ${message} --no-verify`.cwd(cwd);
   return true;
 };
-var authArgs = (token) => token ? [
-  "-c",
-  `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`
-] : [];
+var authArgs = (token) => {
+  if (!token)
+    return [];
+  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  setSecret(header);
+  return ["-c", `http.https://github.com/.extraheader=${header}`];
+};
 var push = async (cwd = ".", branch, token) => {
   const auth = authArgs(token);
   if (branch)
@@ -1040,6 +1046,8 @@ var copyReferences = (src, dist, tag) => {
 
 // src/docs-sync/index.ts
 var main = async () => {
+  const docsToken = getString("docs-token") || undefined;
+  delete process4.env.INPUT_DOCS_TOKEN;
   const srcPath = getString("src-path", ".");
   const docsPath = getString("docs-path", "docs-dist");
   const repository = getString("repository", process4.env.GITHUB_REPOSITORY?.split("/")[1]?.toLowerCase());
@@ -1061,6 +1069,6 @@ var main = async () => {
   }
   await generateDocsConfig(docsPath);
   if (await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath))
-    await push(docsPath, undefined, getString("token") || undefined);
+    await push(docsPath, undefined, docsToken);
 };
 main().catch((error2) => setFailed(error2 instanceof Error ? error2.message : String(error2)));

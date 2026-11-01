@@ -118,7 +118,7 @@ Callers are in [`templates/workflows`](templates/workflows).
 | `issue-triage.yml`        | `issues: opened`                                    |                                                          |                                                  |
 | `label-sync.yml`          | `push` of `.github/labels.yml`, `workflow_dispatch` |                                                          |                                                  |
 
-`prepare-env` takes env vars for the prepare action, one static `KEY=VALUE` per line (e.g. the editor's `PUBLIC_*` build vars). Keys that change how later steps run (`NODE_OPTIONS`, `PATH`, `LD_*`, `GITHUB_*`...) are refused. Never pass PR-controlled text through it.
+`prepare-env` takes env vars for the prepare action, one static `KEY=VALUE` per line (e.g. the editor's `PUBLIC_*` build vars). Only `NODE_ENV`, `PUBLIC_*`, `NEXT_PUBLIC_*` and `VITE_*` keys are allowed (through the [`export-env`](#export-env) action): any other key could change how the later steps that hold tokens run. Never pass PR-controlled text through it.
 
 ### Deploy jobs
 
@@ -175,7 +175,7 @@ Outputs: `branch`, `version` (when every package gets the same version), `pull-r
 
 ### `release`
 
-Finds the packages of the config whose version changed between `HEAD^1` and `HEAD`. It publishes them on npm in dependency order (skipping private, `npm: false` and already published ones), then creates the tags and GitHub releases. The changelog comes from the package, or from the root for a shared release of several packages. It does nothing when no version changed. A tag or release that already exists (a re-run) only warns; any other failure, including moving `v<major>`, fails the job.
+Finds the packages of the config whose version changed between `HEAD^1` and `HEAD`. It publishes them on npm in dependency order (skipping private, `npm: false` and already published ones), then creates the tags and GitHub releases. The changelog comes from the package, or from the root for a shared release of several packages. It does nothing when no version changed. A tag already on the same commit, or a release that already exists (a re-run), only warns; any other failure, including moving `v<major>`, fails the job.
 
 | Input                               | Default | Description                   |
 | ----------------------------------- | ------- | ----------------------------- |
@@ -222,8 +222,16 @@ The config is only read when `category` is empty: with a `category` input, `refe
 | `references`      | `docs.references`     | Generate the references with `pnpm run docs`                                |
 | `references-path` | `docs.referencesPath` | References directory                                                        |
 | `version`         |                       | Released version: the references folder (required with references)          |
-| `token`           |                       | Token that pushes to the docs repository. Empty: its checkout's credentials |
+| `docs-token`      |                       | Token that pushes to the docs repository. Empty: its checkout's credentials |
 | `config`          |                       |                                                                             |
+
+### `export-env`
+
+Exports static build variables, one `KEY=VALUE` per line, to the next steps of the job. It is an allowlist: only `NODE_ENV`, `PUBLIC_*`, `NEXT_PUBLIC_*` and `VITE_*` keys are accepted, and any other line fails the step.
+
+| Input | Default | Description              |
+| ----- | ------- | ------------------------ |
+| `env` |         | One `KEY=VALUE` per line |
 
 ### `docker-release`
 

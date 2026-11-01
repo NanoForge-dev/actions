@@ -3293,6 +3293,9 @@ var ExitCode;
   ExitCode2[ExitCode2["Success"] = 0] = "Success";
   ExitCode2[ExitCode2["Failure"] = 1] = "Failure";
 })(ExitCode || (ExitCode = {}));
+function setSecret(secret) {
+  issueCommand("add-mask", {}, secret);
+}
 function setOutput(name, value) {
   const filePath = process.env["GITHUB_OUTPUT"] || "";
   if (filePath) {
@@ -3491,10 +3494,13 @@ var commitAll = async (message, cwd = ".") => {
   await $`git ${BOT} commit -m ${message} --no-verify`.cwd(cwd);
   return true;
 };
-var authArgs = (token) => token ? [
-  "-c",
-  `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`
-] : [];
+var authArgs = (token) => {
+  if (!token)
+    return [];
+  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  setSecret(header);
+  return ["-c", `http.https://github.com/.extraheader=${header}`];
+};
 var push = async (cwd = ".", branch, token) => {
   const auth = authArgs(token);
   if (branch)
@@ -7173,13 +7179,20 @@ var createPullRequest = async (head, title, body) => {
   });
   return data.html_url;
 };
-var status = (error2) => error2?.status;
+var failure = (error2) => ({
+  status: error2?.status,
+  message: String(error2?.message ?? error2)
+});
 var createTag = async (tag, sha) => {
   try {
     await client().rest.git.createRef({ ...context2.repo, ref: `refs/tags/${tag}`, sha });
   } catch (error2) {
-    if (status(error2) !== 422)
-      throw new Error(`Failed to create tag "${tag}": ${error2}`);
+    const { status, message } = failure(error2);
+    if (status !== 422 || !/already exists/i.test(message))
+      throw new Error(`Failed to create tag "${tag}": ${message}`);
+    const { data } = await client().rest.git.getRef({ ...context2.repo, ref: `tags/${tag}` });
+    if (data.object.sha !== sha)
+      throw new Error(`Tag "${tag}" already exists on ${data.object.sha}, not on ${sha}`);
     warning(`Tag "${tag}" already exists`);
   }
 };
@@ -7187,8 +7200,9 @@ var moveTag = async (tag, sha) => {
   try {
     await client().rest.git.updateRef({ ...context2.repo, ref: `tags/${tag}`, sha, force: true });
   } catch (error2) {
-    if (status(error2) !== 422)
-      throw new Error(`Failed to move tag "${tag}": ${error2}`);
+    const { status, message } = failure(error2);
+    if (status !== 422 || !/does not exist/i.test(message))
+      throw new Error(`Failed to move tag "${tag}": ${message}`);
     info(`Tag "${tag}" doesn't exist yet, creating it`);
     await createTag(tag, sha);
   }
@@ -7205,8 +7219,9 @@ var createRelease = async (tag, sha, body, latest) => {
       make_latest: latest ? "true" : "false"
     });
   } catch (error2) {
-    if (status(error2) !== 422)
-      throw new Error(`Failed to create the GitHub release "${tag}": ${error2}`);
+    const { status, message } = failure(error2);
+    if (status !== 422 || !/already_exists/.test(message))
+      throw new Error(`Failed to create the GitHub release "${tag}": ${message}`);
     warning(`GitHub release "${tag}" already exists`);
   }
 };

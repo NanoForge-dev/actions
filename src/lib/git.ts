@@ -1,3 +1,4 @@
+import { setSecret } from "@actions/core";
 import { $ } from "bun";
 
 const BOT = [
@@ -20,13 +21,12 @@ export const commitAll = async (message: string, cwd = "."): Promise<boolean> =>
 };
 
 /** Auth for one git command, so a token never sits in .git/config for later steps to read. */
-const authArgs = (token?: string): string[] =>
-  token
-    ? [
-        "-c",
-        `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`,
-      ]
-    : [];
+const authArgs = (token?: string): string[] => {
+  if (!token) return [];
+  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  setSecret(header);
+  return ["-c", `http.https://github.com/.extraheader=${header}`];
+};
 
 /** Pushes the current branch, or `branch` to `origin/branch`. Without `token`, uses the checkout's credentials. */
 export const push = async (cwd = ".", branch?: string, token?: string): Promise<void> => {

@@ -30,15 +30,22 @@ export const createPullRequest = async (
   return data.html_url;
 };
 
-const status = (error: unknown): number | undefined =>
-  (error as { status?: number } | undefined)?.status;
+const failure = (error: unknown): { status?: number; message: string } => ({
+  status: (error as { status?: number } | undefined)?.status,
+  message: String((error as { message?: string } | undefined)?.message ?? error),
+});
 
-/** Creates `tag`. An existing tag (a re-run) only warns; any other failure throws. */
+/** Creates `tag`. A re-run (the tag already on `sha`) only warns; any other failure throws. */
 export const createTag = async (tag: string, sha: string): Promise<void> => {
   try {
     await client().rest.git.createRef({ ...context.repo, ref: `refs/tags/${tag}`, sha });
   } catch (error) {
-    if (status(error) !== 422) throw new Error(`Failed to create tag "${tag}": ${error}`);
+    const { status, message } = failure(error);
+    if (status !== 422 || !/already exists/i.test(message))
+      throw new Error(`Failed to create tag "${tag}": ${message}`);
+    const { data } = await client().rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
+    if (data.object.sha !== sha)
+      throw new Error(`Tag "${tag}" already exists on ${data.object.sha}, not on ${sha}`);
     warning(`Tag "${tag}" already exists`);
   }
 };
@@ -48,7 +55,9 @@ export const moveTag = async (tag: string, sha: string): Promise<void> => {
   try {
     await client().rest.git.updateRef({ ...context.repo, ref: `tags/${tag}`, sha, force: true });
   } catch (error) {
-    if (status(error) !== 422) throw new Error(`Failed to move tag "${tag}": ${error}`);
+    const { status, message } = failure(error);
+    if (status !== 422 || !/does not exist/i.test(message))
+      throw new Error(`Failed to move tag "${tag}": ${message}`);
     info(`Tag "${tag}" doesn't exist yet, creating it`);
     await createTag(tag, sha);
   }
@@ -72,8 +81,10 @@ export const createRelease = async (
       make_latest: latest ? "true" : "false",
     });
   } catch (error) {
-    if (status(error) !== 422)
-      throw new Error(`Failed to create the GitHub release "${tag}": ${error}`);
+    // Octokit puts the validation errors in the message: `... "code":"already_exists","field":"tag_name"`.
+    const { status, message } = failure(error);
+    if (status !== 422 || !/already_exists/.test(message))
+      throw new Error(`Failed to create the GitHub release "${tag}": ${message}`);
     warning(`GitHub release "${tag}" already exists`);
   }
 };

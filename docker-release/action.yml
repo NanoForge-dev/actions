@@ -61,7 +61,7 @@ runs:
 
     - name: Extract metadata (tags, labels)
       id: meta
-      uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7 # same pin as v2
+      uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7 # untagged commit, kept from the v2 docker-push actions
       with:
         images: ${{ inputs.registry }}/${{ steps.check.outputs.image }}
         tags: |
@@ -100,6 +100,7 @@ runs:
       run: |
         # The token is passed per command, never stored in .git/config.
         auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$CLOUD_IAC_TOKEN" | base64 -w0)"
+        echo "::add-mask::$auth"
         yq -i "${VALUES_KEY} = strenv(VERSION)" "$VALUES_FILE"
         git add -- "$VALUES_FILE"
         if git diff --cached --quiet; then echo "Tag already set"; exit 0; fi
