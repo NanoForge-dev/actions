@@ -1,0 +1,35 @@
+name: Pre-Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: Release group of .github/nanoforge.json (empty = the first group)
+        type: string
+        default: ""
+      packages:
+        description: Comma-separated packages (empty = the group's mode decides)
+        type: string
+        default: ""
+      version:
+        description: Version (empty = from the commits, breaking → major, feat → minor, fix → patch)
+        type: string
+        default: ""
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-pr:
+    name: Release PR
+    uses: NanoForge-dev/actions/.github/workflows/release-pr.yml@v3
+    with:
+      group: ${{ inputs.group }}
+      packages: ${{ inputs.packages }}
+      version: ${{ inputs.version }}
+      dry-run: ${{ inputs.dry-run }}

@@ -1,0 +1,67 @@
+# Reusable: opens the release PR of a group of .github/nanoforge.json. See templates/workflows/pre-release.yml.
+name: Release PR
+
+on:
+  workflow_call:
+    inputs:
+      group:
+        description: Release group (empty = the first group)
+        type: string
+        default: ""
+      packages:
+        description: Comma-separated packages of the group (empty = the group's mode decides)
+        type: string
+        default: ""
+      version:
+        description: Version to release (empty = from the commits, breaking → major, feat → minor, fix → patch)
+        type: string
+        default: ""
+      dry-run:
+        description: Log what would happen without pushing or opening the PR
+        type: boolean
+        default: false
+      prepare-env:
+        description: Env vars for the repository's prepare action, one KEY=VALUE per line
+        type: string
+        default: ""
+    outputs:
+      pull-request:
+        description: URL of the release PR
+        value: ${{ jobs.release-pr.outputs.pull-request }}
+
+permissions: {}
+
+jobs:
+  release-pr:
+    name: Create release PR
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev'
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pull-request: ${{ steps.release-pr.outputs.pull-request }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Export the prepare env
+        if: inputs.prepare-env != ''
+        env:
+          PREPARE_ENV: ${{ inputs.prepare-env }}
+        run: printf '%s\n' "$PREPARE_ENV" >> "$GITHUB_ENV"
+
+      - name: Prepare
+        uses: ./.github/actions/prepare
+
+      - name: Create release PR
+        id: release-pr
+        uses: NanoForge-dev/actions/release-pr@v3
+        with:
+          group: ${{ inputs.group }}
+          packages: ${{ inputs.packages }}
+          version: ${{ inputs.version }}
+          dry-run: ${{ inputs.dry-run }}

@@ -1,54 +1,157 @@
+# Reusable: runs on every merged PR. A merged releases/* PR publishes, tags and syncs the docs;
+# any other merged PR publishes a beta of the betaOnMerge groups. See templates/workflows/release.yml.
 name: Release
 
 on:
-  pull_request:
-    types:
-      - closed
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      prepare-env:
+        description: Env vars for the repository's prepare action, one KEY=VALUE per line
+        type: string
+        default: ""
+    secrets:
+      NPM_PUBLISH_TOKEN:
+        description: npm token (publishing)
+        required: false
+      NANOFORGE_BOT_TOKEN:
+        description: Token that can push to NanoForge-dev/docs (docs sync)
+        required: false
+    outputs:
+      released:
+        description: '"true" when something was released'
+        value: ${{ jobs.release.outputs.released }}
+      version:
+        description: Version of the first release
+        value: ${{ jobs.release.outputs.version }}
+      tag:
+        description: Tag of the first release
+        value: ${{ jobs.release.outputs.tag }}
+      tags:
+        description: JSON list of every tag created
+        value: ${{ jobs.release.outputs.tags }}
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 jobs:
+  config:
+    name: Read config
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true
+    permissions:
+      contents: read
+    outputs:
+      beta: ${{ steps.read.outputs.beta }}
+      docs: ${{ steps.read.outputs.docs }}
+    steps:
+      - name: Checkout config
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          sparse-checkout: .github/nanoforge.json
+          sparse-checkout-cone-mode: false
+
+      - name: Read config
+        id: read
+        run: |
+          echo "beta=$(jq -r '[.groups[] | select(.betaOnMerge == true)] | length > 0' .github/nanoforge.json)" >> "$GITHUB_OUTPUT"
+          echo "docs=$(jq -r 'has("docs")' .github/nanoforge.json)" >> "$GITHUB_OUTPUT"
+
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
+    needs: [config]
+    if: startsWith(github.head_ref, 'releases/')
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      tags: ${{ steps.release.outputs.tags }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 2
+
+      - name: Export the prepare env
+        if: inputs.prepare-env != ''
+        env:
+          PREPARE_ENV: ${{ inputs.prepare-env }}
+        run: printf '%s\n' "$PREPARE_ENV" >> "$GITHUB_ENV"
 
       - name: Prepare
         uses: ./.github/actions/prepare
 
       - name: Release packages
-        uses: ./actions/release-packages
+        id: release
+        uses: NanoForge-dev/actions/release@v3
         with:
-          packages: "@nanoforge-dev/actions"
-          tag-format: "{version}"
-          latest: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
-  beta-release:
+  beta:
     name: Beta release
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && !startsWith(github.head_ref, 'releases/')
+    needs: [config]
+    if: "!startsWith(github.head_ref, 'releases/') && needs.config.outputs.beta == 'true'"
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Export the prepare env
+        if: inputs.prepare-env != ''
+        env:
+          PREPARE_ENV: ${{ inputs.prepare-env }}
+        run: printf '%s\n' "$PREPARE_ENV" >> "$GITHUB_ENV"
 
       - name: Prepare
         uses: ./.github/actions/prepare
 
       - name: Release beta
-        uses: ./actions/release-dev
+        uses: NanoForge-dev/actions/prerelease@v3
         with:
-          package: "@nanoforge-dev/actions"
-          tag: beta
+          channel: beta
+          npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
+
+  docs:
+    name: Sync docs
+    runs-on: ubuntu-latest
+    needs: [config, release]
+    if: needs.release.outputs.released == 'true' && needs.config.outputs.docs == 'true'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout docs repository
+        uses: actions/checkout@v7
+        with:
+          path: docs-dist
+          repository: NanoForge-dev/docs
+          token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+
+      - name: Export the prepare env
+        if: inputs.prepare-env != ''
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREPARE_ENV: ${{ inputs.prepare-env }}
+        run: printf '%s\n' "$PREPARE_ENV" >> "$GITHUB_ENV"
+
+      - name: Prepare
+        uses: ./.github/actions/prepare
+
+      - name: Sync docs
+        uses: NanoForge-dev/actions/docs-sync@v3
+        with:
+          version: ${{ needs.release.outputs.version }}

@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: One package to release with its dependencies (all = every package)
+        type: string
+        default: all
+      exclude:
+        description: Comma-separated packages not to release, unless a released package needs them
+        type: string
+        default: ""
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  nf-publish:
+    name: NanoForge registry release
+    uses: NanoForge-dev/actions/.github/workflows/nf-registry-release.yml@v3
+    with:
+      package: ${{ inputs.package }}
+      exclude: ${{ inputs.exclude }}
+      dry-run: ${{ inputs.dry-run }}
+    secrets: inherit

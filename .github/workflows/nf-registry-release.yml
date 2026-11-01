@@ -1,0 +1,69 @@
+# Reusable: publishes components and systems to the NanoForge registry. See templates/workflows/nf-registry-release.yml.
+name: NanoForge Registry Release
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: One package to release with its dependencies (empty or "all" = every package)
+        type: string
+        default: all
+      exclude:
+        description: Comma-separated packages not to release, unless a released package needs them
+        type: string
+        default: ""
+      path:
+        description: Directory holding the packages
+        type: string
+        default: packages
+      dry-run:
+        description: Log what would happen without publishing
+        type: boolean
+        default: false
+      prepare-env:
+        description: Env vars for the repository's prepare action, one KEY=VALUE per line
+        type: string
+        default: ""
+    secrets:
+      NF_REGISTRY_KEY:
+        description: NanoForge registry key (nf login)
+        required: true
+
+permissions: {}
+
+jobs:
+  nf-publish:
+    name: nf publish
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Export the prepare env
+        if: inputs.prepare-env != ''
+        env:
+          PREPARE_ENV: ${{ inputs.prepare-env }}
+        run: printf '%s\n' "$PREPARE_ENV" >> "$GITHUB_ENV"
+
+      - name: Prepare
+        uses: ./.github/actions/prepare
+
+      - name: Install the nf CLI
+        run: pnpm install -g @nanoforge-dev/cli
+
+      - name: Log in to the NanoForge registry
+        if: "!inputs.dry-run"
+        env:
+          NF_REGISTRY_KEY: ${{ secrets.NF_REGISTRY_KEY }}
+        run: nf login -k "$NF_REGISTRY_KEY"
+
+      - name: Release packages
+        uses: NanoForge-dev/actions/nf-registry-release@v3
+        with:
+          package: ${{ inputs.package }}
+          exclude: ${{ inputs.exclude }}
+          path: ${{ inputs.path }}
+          dry-run: ${{ inputs.dry-run }}

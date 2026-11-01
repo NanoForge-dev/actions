@@ -1,0 +1,41 @@
+# This repo's own release PR. It runs the local actions (./release-pr), not @v3, so a release never
+# depends on the previous one. Other repos use release-pr.yml through templates/workflows/pre-release.yml.
+name: Pre-Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (empty = from the commits, breaking → major, feat → minor, fix → patch)
+        type: string
+        default: ""
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  release-pr:
+    name: Create release PR
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Prepare
+        uses: ./.github/actions/prepare
+
+      - name: Create release PR
+        uses: ./release-pr
+        with:
+          version: ${{ inputs.version }}
+          dry-run: ${{ inputs.dry-run }}

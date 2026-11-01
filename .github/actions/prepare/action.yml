@@ -1,23 +1,7 @@
 name: prepare
 description: Prepare action
-inputs:
-  node-install:
-    description: Install node
-    default: "true"
-  pnpm-install:
-    description: Install pnpm depedencies
-    default: "true"
 runs:
   using: composite
   steps:
-    - if: inputs.node-install == 'true'
-      name: Install Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: 25
-        package-manager-cache: false
-        registry-url: https://registry.npmjs.org
-
-    - if: inputs.pnpm-install == 'true'
-      name: Install dependencies
-      uses: ./.github/actions/pnpm-install
+    - name: Set up Node.js, pnpm and the dependencies
+      uses: ./setup

@@ -1,0 +1,26 @@
+name: Alpha Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated packages (empty = the only package of .github/nanoforge.json)
+        type: string
+        default: ""
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  alpha:
+    name: Alpha release
+    uses: NanoForge-dev/actions/.github/workflows/alpha-release.yml@v3
+    with:
+      packages: ${{ inputs.packages }}
+      dry-run: ${{ inputs.dry-run }}
+    secrets: inherit
