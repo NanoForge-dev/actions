@@ -3499,7 +3499,9 @@ var commitAll = async (message, cwd = ".") => {
 var authArgs = (token) => {
   if (!token)
     return [];
-  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+  const header = `AUTHORIZATION: basic ${basic}`;
+  setSecret(basic);
   setSecret(header);
   return ["-c", `http.https://github.com/.extraheader=${header}`];
 };

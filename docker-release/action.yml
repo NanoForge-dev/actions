@@ -99,8 +99,9 @@ runs:
         CLOUD_IAC_TOKEN: ${{ inputs.cloud-iac-token }}
       run: |
         # The token is passed per command, never stored in .git/config.
-        auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$CLOUD_IAC_TOKEN" | base64 -w0)"
-        echo "::add-mask::$auth"
+        basic="$(printf 'x-access-token:%s' "$CLOUD_IAC_TOKEN" | base64 -w0)"
+        echo "::add-mask::$basic"
+        auth="AUTHORIZATION: basic $basic"
         yq -i "${VALUES_KEY} = strenv(VERSION)" "$VALUES_FILE"
         git add -- "$VALUES_FILE"
         if git diff --cached --quiet; then echo "Tag already set"; exit 0; fi

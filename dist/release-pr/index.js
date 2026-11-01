@@ -3509,7 +3509,9 @@ var commitAll = async (message, cwd = ".") => {
 var authArgs = (token) => {
   if (!token)
     return [];
-  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+  const header = `AUTHORIZATION: basic ${basic}`;
+  setSecret(basic);
   setSecret(header);
   return ["-c", `http.https://github.com/.extraheader=${header}`];
 };
@@ -7450,21 +7452,25 @@ var bumpVersion = (version, bump) => {
   return next;
 };
 var highestVersion = (versions) => versions.reduce((max, version) => import_semver.default.gt(version, max) ? version : max);
-var lowestVersion = (versions) => versions.reduce((min, version) => import_semver.default.lt(version, min) ? version : min);
 var assertVersion = (version) => {
   if (!import_semver.default.valid(version))
     throw new Error(`"${version}" is not a valid semver version`);
   return version;
 };
 var resolveNextVersion = async (current, tag, paths) => {
-  const tagName = formatString(tag.format, {
+  const tagOf = (version) => formatString(tag.format, {
     name: tag.name,
     package: tag.package,
-    version: tag.version ?? current,
+    version,
     packages: "",
     run: ""
   });
-  const since = await tagExists(tagName) ? tagName : undefined;
+  let since;
+  for (const candidate of [...new Set([tag.version ?? current, current])].map(tagOf))
+    if (await tagExists(candidate)) {
+      since = candidate;
+      break;
+    }
   const bump = highestBump(await commitMessages(since, paths));
   if (!bump)
     throw new NothingToReleaseError(`No feat, fix or breaking commit since ${since ?? "the first commit"} in ${paths.join(", ")}: give a version to release anyway`);
@@ -7506,13 +7512,24 @@ var planShared = async (group, pkgs, groupPkgs, forced) => {
   if (forced)
     return pkgs.map((pkg) => ({ pkg, version: forced, reason: "given version" }));
   const current = highestVersion(groupPkgs.map((pkg) => pkg.version));
-  const oldest = lowestVersion(pkgs.map((pkg) => pkg.version));
-  const { version, bump, since } = await resolveNextVersion(current, {
-    format: group.tagFormat,
-    name: group.name,
-    package: pkgs.length === 1 ? pkgs[0]?.name : undefined,
-    version: oldest
-  }, pkgs.map((pkg) => repoRelative(pkg.path)));
+  const results = [];
+  for (const pkg of pkgs) {
+    try {
+      results.push(await resolveNextVersion(current, {
+        format: group.tagFormat,
+        name: group.name,
+        package: pkgs.length === 1 ? pkg.name : undefined,
+        version: pkg.version
+      }, [repoRelative(pkg.path)]));
+    } catch (error2) {
+      if (!(error2 instanceof NothingToReleaseError))
+        throw error2;
+    }
+  }
+  const version = highestVersion(results.map((result) => result.version));
+  if (!results.length || !version)
+    throw new NothingToReleaseError("No selected package has a feat, fix or breaking commit since its last release: give a version to release anyway");
+  const { bump, since } = results.find((result) => result.version === version);
   const reason = `${bump} bump since ${since ?? "the first commit"}`;
   return pkgs.map((pkg) => ({ pkg, version, reason }));
 };

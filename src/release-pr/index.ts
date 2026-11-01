@@ -12,7 +12,6 @@ import {
   NothingToReleaseError,
   assertVersion,
   highestVersion,
-  lowestVersion,
   resolveNextVersion,
 } from "../lib/version";
 import {
@@ -38,20 +37,36 @@ const planShared = async (
 ): Promise<PlannedRelease[]> => {
   if (forced) return pkgs.map((pkg) => ({ pkg, version: forced, reason: "given version" }));
   // The whole group shares one version line: bump its highest version, so releasing a subset never
-  // reuses a version (and a tag) another subset already took. Count the commits from the oldest release
-  // among the selected packages, so none of their unreleased commits is missed.
+  // reuses a version (and a tag) another subset already took. Each package's commits count from its own
+  // last release, so none is missed or counted twice; the biggest bump wins.
   const current = highestVersion(groupPkgs.map((pkg) => pkg.version));
-  const oldest = lowestVersion(pkgs.map((pkg) => pkg.version));
-  const { version, bump, since } = await resolveNextVersion(
-    current,
-    {
-      format: group.tagFormat,
-      name: group.name,
-      package: pkgs.length === 1 ? pkgs[0]?.name : undefined,
-      version: oldest,
-    },
-    pkgs.map((pkg) => repoRelative(pkg.path)),
-  );
+  const results = [];
+  for (const pkg of pkgs) {
+    try {
+      results.push(
+        await resolveNextVersion(
+          current,
+          {
+            format: group.tagFormat,
+            name: group.name,
+            package: pkgs.length === 1 ? pkg.name : undefined,
+            version: pkg.version,
+          },
+          [repoRelative(pkg.path)],
+        ),
+      );
+    } catch (error) {
+      if (!(error instanceof NothingToReleaseError)) throw error;
+    }
+  }
+  const version = highestVersion(results.map((result) => result.version));
+  if (!results.length || !version)
+    throw new NothingToReleaseError(
+      "No selected package has a feat, fix or breaking commit since its last release: give a version to release anyway",
+    );
+  const { bump, since } = results.find(
+    (result) => result.version === version,
+  ) as (typeof results)[0];
   const reason = `${bump} bump since ${since ?? "the first commit"}`;
   return pkgs.map((pkg) => ({ pkg, version, reason }));
 };

@@ -23,7 +23,9 @@ export const commitAll = async (message: string, cwd = "."): Promise<boolean> =>
 /** Auth for one git command, so a token never sits in .git/config for later steps to read. */
 const authArgs = (token?: string): string[] => {
   if (!token) return [];
-  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+  const header = `AUTHORIZATION: basic ${basic}`;
+  setSecret(basic);
   setSecret(header);
   return ["-c", `http.https://github.com/.extraheader=${header}`];
 };

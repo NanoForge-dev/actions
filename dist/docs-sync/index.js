@@ -793,7 +793,9 @@ var commitAll = async (message, cwd = ".") => {
 var authArgs = (token) => {
   if (!token)
     return [];
-  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+  const header = `AUTHORIZATION: basic ${basic}`;
+  setSecret(basic);
   setSecret(header);
   return ["-c", `http.https://github.com/.extraheader=${header}`];
 };
@@ -1058,8 +1060,6 @@ var copyReferences = (src, dist, tag) => {
 
 // src/docs-sync/index.ts
 var main = async () => {
-  const docsToken = getString("docs-token") || undefined;
-  delete process4.env.INPUT_DOCS_TOKEN;
   const srcPath = getString("src-path", ".");
   const docsPath = getString("docs-path", "docs-dist");
   const repository = getString("repository", process4.env.GITHUB_REPOSITORY?.split("/")[1]?.toLowerCase());
@@ -1080,7 +1080,7 @@ var main = async () => {
     copyReferences(join5(srcPath, referencesPath), docsPath, version);
   }
   await generateDocsConfig(docsPath);
-  if (await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath))
-    await push(docsPath, undefined, docsToken);
+  const changed = await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath);
+  setOutput("changed", changed ? "true" : "false");
 };
 main().catch((error2) => setFailed(error2 instanceof Error ? error2.message : String(error2)));

@@ -37,31 +37,35 @@ export const bumpVersion = (version: string, bump: Bump): string => {
 export const highestVersion = (versions: string[]): string =>
   versions.reduce((max, version) => (semver.gt(version, max) ? version : max));
 
-export const lowestVersion = (versions: string[]): string =>
-  versions.reduce((min, version) => (semver.lt(version, min) ? version : min));
-
 export const assertVersion = (version: string): string => {
   if (!semver.valid(version)) throw new Error(`"${version}" is not a valid semver version`);
   return version;
 };
 
 /**
- * Bumps `current` from the commits since the tag of `tag.version` (default `current`; all history if
- * that tag is missing), limited to `paths`. Throws NothingToReleaseError when no commit asks for a release.
+ * Bumps `current` from the commits since the tag of `tag.version` (default `current`), limited to `paths`.
+ * When that tag is missing (e.g. a package new to its group), counts from the tag of `current`, and from the
+ * whole history only if that one is missing too. Throws NothingToReleaseError when no commit asks for a release.
  */
 export const resolveNextVersion = async (
   current: string,
   tag: { format: string; name: string; package?: string; version?: string },
   paths: string[],
 ): Promise<{ version: string; bump: Bump; since?: string }> => {
-  const tagName = formatString(tag.format, {
-    name: tag.name,
-    package: tag.package,
-    version: tag.version ?? current,
-    packages: "",
-    run: "",
-  });
-  const since = (await tagExists(tagName)) ? tagName : undefined;
+  const tagOf = (version: string) =>
+    formatString(tag.format, {
+      name: tag.name,
+      package: tag.package,
+      version,
+      packages: "",
+      run: "",
+    });
+  let since: string | undefined;
+  for (const candidate of [...new Set([tag.version ?? current, current])].map(tagOf))
+    if (await tagExists(candidate)) {
+      since = candidate;
+      break;
+    }
   const bump = highestBump(await commitMessages(since, paths));
   if (!bump)
     throw new NothingToReleaseError(

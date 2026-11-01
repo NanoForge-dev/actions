@@ -101,6 +101,17 @@ describe("resolveNextVersion (real git repo)", () => {
     expect(result).toEqual({ version: "1.6.0", bump: "minor", since: "1.2.0" });
   });
 
+  test("a package with no tag counts from the group's tag, not the whole history", async () => {
+    // An old breaking commit before 1.5.0 must not count again for a package new to the group.
+    await commit("packages/c/new", "fix(c): new package");
+    const result = await resolveNextVersion(
+      "1.5.0",
+      { format: "{version}", name: "g", version: "0.0.0" },
+      ["packages/c"],
+    );
+    expect(result).toEqual({ version: "1.5.1", bump: "patch", since: "1.5.0" });
+  });
+
   test("fails when nothing asks for a release", async () => {
     await commit("packages/c/z", "chore(c): nothing");
     await $`git tag c-1.0.0`;

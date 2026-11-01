@@ -48,4 +48,15 @@ runs:
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
-        INPUT_DOCS_TOKEN: ${{ inputs.docs-token }}
+    # Separate step: the token never reaches the step that runs the repo's docs script.
+    - name: Push the docs
+      if: steps.run.outputs.changed == 'true'
+      shell: bash
+      env:
+        DOCS_PATH: ${{ inputs.docs-path }}
+        DOCS_TOKEN: ${{ inputs.docs-token }}
+      run: |
+        if [ -z "$DOCS_TOKEN" ]; then git -C "$DOCS_PATH" push --no-verify; exit 0; fi
+        basic="$(printf 'x-access-token:%s' "$DOCS_TOKEN" | base64 -w0)"
+        echo "::add-mask::$basic"
+        git -C "$DOCS_PATH" -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --no-verify

@@ -1,9 +1,9 @@
-import { setFailed } from "@actions/core";
+import { setFailed, setOutput } from "@actions/core";
 import process from "node:process";
 import { join } from "path";
 
 import { loadConfig } from "../lib/config";
-import { commitAll, push } from "../lib/git";
+import { commitAll } from "../lib/git";
 import { getBoolean, getString } from "../lib/inputs";
 import { rootPath } from "../lib/workspace";
 import { copyDocs } from "./copy-docs";
@@ -11,10 +11,6 @@ import { generateDocsConfig } from "./generate/generate-config";
 import { copyReferences, generateReferences } from "./references";
 
 const main = async () => {
-  // Read the token, then drop it from the env so `pnpm run docs` (repo code) never sees it.
-  const docsToken = getString("docs-token") || undefined;
-  delete process.env.INPUT_DOCS_TOKEN;
-
   const srcPath = getString("src-path", ".");
   const docsPath = getString("docs-path", "docs-dist");
   const repository = getString(
@@ -43,10 +39,13 @@ const main = async () => {
 
   await generateDocsConfig(docsPath);
 
-  if (
-    await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath)
-  )
-    await push(docsPath, undefined, docsToken);
+  // No push here: this step runs the repo's docs script, so the action pushes in a later step that alone
+  // holds the token.
+  const changed = await commitAll(
+    `chore(${repository}): deploy docs${version ? ` v${version}` : ""}`,
+    docsPath,
+  );
+  setOutput("changed", changed ? "true" : "false");
 };
 
 main().catch((error: unknown) => setFailed(error instanceof Error ? error.message : String(error)));
