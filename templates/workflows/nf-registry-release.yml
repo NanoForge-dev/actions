@@ -1,4 +1,4 @@
-name: Release
+name: NanoForge Registry Release
 
 on:
   workflow_dispatch:
@@ -27,4 +27,5 @@ jobs:
       package: ${{ inputs.package }}
       exclude: ${{ inputs.exclude }}
       dry-run: ${{ inputs.dry-run }}
-    secrets: inherit
+    secrets:
+      NF_REGISTRY_KEY: ${{ secrets.NF_REGISTRY_KEY }}

@@ -42,7 +42,7 @@ const main = async () => {
   if (
     await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath)
   )
-    await push(docsPath);
+    await push(docsPath, undefined, getString("token") || undefined);
 };
 
 main().catch((error: unknown) => setFailed(error instanceof Error ? error.message : String(error)));

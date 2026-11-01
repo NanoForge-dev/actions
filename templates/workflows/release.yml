@@ -15,23 +15,8 @@ jobs:
   release:
     name: Release
     uses: NanoForge-dev/actions/.github/workflows/release.yml@v3
-    secrets: inherit
+    secrets:
+      NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+      NANOFORGE_BOT_TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN }}
 
-  # Repo-specific deploy jobs go here, after the release. Example for an app image:
-  #
-  # docker:
-  #   name: Push image
-  #   runs-on: ubuntu-latest
-  #   needs: [release]
-  #   if: needs.release.outputs.released == 'true'
-  #   permissions:
-  #     contents: read
-  #     packages: write
-  #   steps:
-  #     - uses: actions/checkout@v7
-  #     - uses: NanoForge-dev/actions/docker-release@v3
-  #       with:
-  #         image: ${{ github.repository }}
-  #         version: ${{ needs.release.outputs.version }}
-  #         values-file: kubernetes/nanoforge/<app>-override.yaml
-  #         cloud-iac-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+  # Repo-specific deploy jobs (Docker images) go after the release: see "Deploy jobs" in the README.

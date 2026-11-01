@@ -131,7 +131,7 @@ const main = async () => {
   } else {
     if (!(await commitAll(message)))
       throw new Error("Nothing changed: the versions are already set");
-    await push(".", branch);
+    await push(".", branch, process.env.GITHUB_TOKEN);
     url = await createPullRequest(
       branch,
       message,

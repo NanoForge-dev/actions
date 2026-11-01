@@ -19,11 +19,23 @@ export const commitAll = async (message: string, cwd = "."): Promise<boolean> =>
   return true;
 };
 
-/** Pushes the current branch, or `branch` to `origin/branch`. */
-export const push = async (cwd = ".", branch?: string): Promise<void> => {
+/** Auth for one git command, so a token never sits in .git/config for later steps to read. */
+const authArgs = (token?: string): string[] =>
+  token
+    ? [
+        "-c",
+        `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`,
+      ]
+    : [];
+
+/** Pushes the current branch, or `branch` to `origin/branch`. Without `token`, uses the checkout's credentials. */
+export const push = async (cwd = ".", branch?: string, token?: string): Promise<void> => {
+  const auth = authArgs(token);
   if (branch)
-    await $`git push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(cwd);
-  else await $`git push --no-verify`.cwd(cwd);
+    await $`git ${auth} push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(
+      cwd,
+    );
+  else await $`git ${auth} push --no-verify`.cwd(cwd);
 };
 
 export const headSha = async (): Promise<string> => (await $`git rev-parse HEAD`.text()).trim();

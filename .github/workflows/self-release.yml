@@ -1,5 +1,5 @@
 # This repo's own release: tags <version>, moves v<major> and creates the GitHub release with the local ./release action.
-name: Release
+name: Self Release
 
 on:
   pull_request:
@@ -21,11 +21,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 2
 
-      - name: Prepare
-        uses: ./.github/actions/prepare
+      # The release only lists the workspace and calls the API: no dependencies needed.
+      - name: Set up Node.js and pnpm
+        uses: ./setup
+        with:
+          install: "false"
+          swap-size-gb: "0"
 
       - name: Release
         uses: ./release

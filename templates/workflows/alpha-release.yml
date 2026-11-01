@@ -23,4 +23,5 @@ jobs:
     with:
       packages: ${{ inputs.packages }}
       dry-run: ${{ inputs.dry-run }}
-    secrets: inherit
+    secrets:
+      NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}

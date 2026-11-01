@@ -22,6 +22,9 @@ inputs:
   version:
     description: "Released version, the folder of the references (the release action's version output)"
     default: ""
+  token:
+    description: "Token that can push to the docs repository. Empty: the credentials of its checkout"
+    default: ""
   config:
     description: "Path of the release config, from the repository root"
     default: ".github/nanoforge.json"
@@ -29,7 +32,7 @@ runs:
   using: composite
   steps:
     - name: Set up Bun
-      uses: oven-sh/setup-bun@v2
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       with:
         bun-version-file: ${{ github.action_path }}/../.bun-version
     - name: Run docs-sync
@@ -45,3 +48,4 @@ runs:
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_TOKEN: ${{ inputs.token }}

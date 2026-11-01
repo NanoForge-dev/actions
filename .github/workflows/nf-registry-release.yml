@@ -41,12 +41,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Export the prepare env
         if: inputs.prepare-env != ''
         env:
           PREPARE_ENV: ${{ inputs.prepare-env }}
-        run: printf '%s\n' "$PREPARE_ENV" >> "$GITHUB_ENV"
+        run: |
+          # Static KEY=VALUE lines only: keys that change how later steps (holding tokens) run are refused.
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            key="${line%%=*}"
+            if [[ "$line" != *=* || ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ || "$key" =~ ^(NODE_OPTIONS|BASH_ENV|ENV|PATH|LD_.*|GITHUB_.*|RUNNER_.*|ACTIONS_.*|NODE_AUTH_TOKEN|NPM_CONFIG_.*)$ ]]; then
+              echo "::error::prepare-env: refused line for key \"$key\""; exit 1
+            fi
+            printf '%s\n' "$line" >> "$GITHUB_ENV"
+          done <<< "$PREPARE_ENV"
 
       - name: Prepare
         uses: ./.github/actions/prepare

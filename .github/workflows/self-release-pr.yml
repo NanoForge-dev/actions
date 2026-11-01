@@ -1,6 +1,6 @@
 # This repo's own release PR. It runs the local actions (./release-pr), not @v3, so a release never
-# depends on the previous one. Other repos use release-pr.yml through templates/workflows/pre-release.yml.
-name: Pre-Release
+# depends on the previous one. Other repos use release-pr.yml through templates/workflows/release-pr.yml.
+name: Self Release PR
 
 on:
   workflow_dispatch:
@@ -28,6 +28,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           fetch-depth: 0
           fetch-tags: true
 
