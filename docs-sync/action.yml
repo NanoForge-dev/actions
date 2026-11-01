@@ -73,8 +73,9 @@ runs:
         git check-ref-format --branch "$branch" >/dev/null || { echo "::error::Unexpected docs branch"; exit 1; }
         basic="$(printf 'x-access-token:%s' "$DOCS_TOKEN" | base64 -w0)"
         echo "::add-mask::$basic"
-        clean="$RUNNER_TEMP/docs-push"
+        # A new unpredictable directory: a repo planted at a fixed path would keep its own config.
+        clean="$(mktemp -d "$RUNNER_TEMP/docs-push.XXXXXX")"
         git init -q --bare "$clean"
         git -C "$clean" fetch -q --no-tags "$(cd "$DOCS_PATH" && pwd)" "HEAD:refs/heads/$branch"
-        git -C "$clean" -c core.hooksPath=/dev/null -c "http.$url.extraheader=AUTHORIZATION: basic $basic" \
+        git -C "$clean" -c core.hooksPath=/dev/null -c http.proxy= -c http.sslVerify=true -c "http.$url.extraheader=AUTHORIZATION: basic $basic" \
           push "$url" "refs/heads/$branch:refs/heads/$branch"
