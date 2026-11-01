@@ -1,0 +1,43 @@
+name: "NanoForge prerelease"
+description: "Publishes alpha (per branch) or beta (per commit) versions on npm and deprecates the older ones"
+inputs:
+  channel:
+    description: "alpha or beta"
+    default: "alpha"
+  packages:
+    description: "Comma-separated packages. Empty: the only package of the config (alpha) or the betaOnMerge groups (beta)"
+    default: ""
+  npm-token:
+    description: "npm token for publishing (NODE_AUTH_TOKEN)"
+    default: ""
+  config:
+    description: "Path of the release config, from the repository root"
+    default: ".github/nanoforge.json"
+  dry-run:
+    description: "Log what would happen without pushing, publishing or tagging"
+    default: "false"
+  github-token:
+    description: "Token used for the GitHub API (PRs, tags, releases)"
+    default: "${{ github.token }}"
+outputs:
+  versions:
+    description: "JSON list of the published versions"
+    value: ${{ steps.run.outputs.versions }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run prerelease
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/prerelease/index.js"
+      env:
+        INPUT_CHANNEL: ${{ inputs.channel }}
+        INPUT_PACKAGES: ${{ inputs.packages }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

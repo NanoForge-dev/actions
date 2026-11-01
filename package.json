@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@nanoforge-dev/actions",
   "version": "2.1.5",
-  "description": "NanoForge Actions",
+  "description": "Shared GitHub actions and reusable workflows of NanoForge",
   "keywords": [
     "nanoforge",
     "game",
@@ -17,28 +17,18 @@
     "Fexkoser <martin.fillon@epitech.eu>",
     "Tchips <leo.outmizguine@epitech.eu>"
   ],
-  "files": [
-    "actions",
-    "lib",
-    "dist",
-    "src"
-  ],
-  "exports": {
-    "./package.json": "./package.json"
-  },
   "type": "module",
-  "directories": {
-    "lib": "src"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/NanoForge-dev/actions.git"
   },
   "funding": "https://github.com/NanoForge-dev/actions?sponsor",
   "scripts": {
-    "lint": "prettier --check . && eslint --format=pretty actions lib",
-    "format": "prettier --write . && eslint --fix --format=pretty actions lib",
-    "prepack": "pnpm run lint",
+    "build": "bun build src/*/index.ts --target=bun --outdir dist --root src",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "prettier --check . && eslint --format=pretty src",
+    "format": "prettier --write . && eslint --fix --format=pretty src",
     "changelog": "git cliff --prepend ./CHANGELOG.md -u -c ./cliff.toml -r ../../ --include-path '*'",
     "release": "cliff-jumper",
     "prepare": "husky"
@@ -46,7 +36,6 @@
   "dependencies": {
     "@actions/core": "catalog:actions",
     "@actions/github": "catalog:actions",
-    "commander": "catalog:core",
     "semver": "catalog:core"
   },
   "devDependencies": {
@@ -69,15 +58,13 @@
   "engines": {
     "node": "25"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "lint-staged": {
     "**": [
       "prettier --ignore-unknown --write"
     ],
-    "{actions|lib}/**/*.ts": [
+    "src/**/*.ts": [
       "eslint --fix"
     ]
-  }
+  },
+  "private": true
 }

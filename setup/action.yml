@@ -1,0 +1,54 @@
+name: "NanoForge setup"
+description: "Installs pnpm and Node.js with the pnpm store cached, then the dependencies"
+inputs:
+  node-version:
+    description: "Node.js version. Empty: read from package.json (devEngines or engines.node) or .nvmrc"
+    default: ""
+  install:
+    description: "Run pnpm install --frozen-lockfile"
+    default: "true"
+  registry-url:
+    description: "npm registry written to .npmrc, so publishing reads NODE_AUTH_TOKEN"
+    default: "https://registry.npmjs.org"
+  swap-size-gb:
+    description: "Swap space to add on Linux runners for memory-hungry builds. 0: none"
+    default: "10"
+runs:
+  using: composite
+  steps:
+    - name: Set up swap space
+      if: runner.os == 'Linux' && inputs.swap-size-gb != '0'
+      uses: pierotofy/set-swap-space@v1.0
+      with:
+        swap-size-gb: ${{ inputs.swap-size-gb }}
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        run_install: false
+
+    - name: Pick the Node.js version source
+      id: node
+      shell: bash
+      env:
+        NODE_VERSION: ${{ inputs.node-version }}
+      run: |
+        if [ -n "$NODE_VERSION" ]; then echo "file=" >> "$GITHUB_OUTPUT"
+        elif [ -f .nvmrc ]; then echo "file=.nvmrc" >> "$GITHUB_OUTPUT"
+        else echo "file=package.json" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Install Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ steps.node.outputs.file }}
+        cache: pnpm
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile --prefer-offline --loglevel error
+      env:
+        HUSKY: "0"

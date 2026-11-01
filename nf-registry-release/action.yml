@@ -1,0 +1,31 @@
+name: "NanoForge registry release"
+description: "Publishes NanoForge components and systems to the NanoForge registry in dependency order"
+inputs:
+  path:
+    description: "Directory holding the packages (nanoforge.manifest.json files)"
+    default: "packages"
+  package:
+    description: 'Name of one package to release with its dependencies. Empty or "all": every package'
+    default: ""
+  exclude:
+    description: "Comma-separated packages not to release, unless another released package needs them"
+    default: ""
+  dry-run:
+    description: "Log what would happen without pushing, publishing or tagging"
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run nf-registry-release
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/nf-registry-release/index.js"
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_PACKAGE: ${{ inputs.package }}
+        INPUT_EXCLUDE: ${{ inputs.exclude }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}

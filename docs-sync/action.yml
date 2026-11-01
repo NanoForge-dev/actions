@@ -1,0 +1,47 @@
+name: "NanoForge docs sync"
+description: "Copies a repository's docs (and API references) into the docs repository, regenerates its navigation and pushes it"
+inputs:
+  repository:
+    description: "Name used in the commit message. Empty: this repository's name"
+    default: ""
+  category:
+    description: "Docs category (engine, cli, editor...). Empty: docs.category of the config"
+    default: ""
+  src-path:
+    description: "Path of the source repository"
+    default: "."
+  docs-path:
+    description: "Path of the checked-out docs repository"
+    default: "docs-dist"
+  references:
+    description: "Generate and copy the API references. Empty: docs.references of the config"
+    default: ""
+  references-path:
+    description: "References directory, from src-path. Empty: docs.referencesPath of the config"
+    default: ""
+  version:
+    description: "Released version, the folder of the references (the release action's version output)"
+    default: ""
+  config:
+    description: "Path of the release config, from the repository root"
+    default: ".github/nanoforge.json"
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run docs-sync
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/docs-sync/index.js"
+      env:
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_CATEGORY: ${{ inputs.category }}
+        INPUT_SRC_PATH: ${{ inputs.src-path }}
+        INPUT_DOCS_PATH: ${{ inputs.docs-path }}
+        INPUT_REFERENCES: ${{ inputs.references }}
+        INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_CONFIG: ${{ inputs.config }}

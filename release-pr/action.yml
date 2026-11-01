@@ -1,0 +1,49 @@
+name: "NanoForge release PR"
+description: "Bumps the packages of a release group (auto version from conventional commits if none is given), writes their changelogs and opens the release PR"
+inputs:
+  group:
+    description: "Release group of the config. Empty: the first group"
+    default: ""
+  packages:
+    description: "Comma-separated packages of the group. Empty: the group's mode decides"
+    default: ""
+  version:
+    description: "Version to release. Empty: resolved from the commits (breaking → major, feat → minor, fix → patch)"
+    default: ""
+  config:
+    description: "Path of the release config, from the repository root"
+    default: ".github/nanoforge.json"
+  dry-run:
+    description: "Log what would happen without pushing, publishing or tagging"
+    default: "false"
+  github-token:
+    description: "Token used for the GitHub API (PRs, tags, releases)"
+    default: "${{ github.token }}"
+outputs:
+  branch:
+    description: "Release branch"
+    value: ${{ steps.run.outputs.branch }}
+  version:
+    description: "Released version, when it is shared"
+    value: ${{ steps.run.outputs.version }}
+  pull-request:
+    description: "URL of the PR (empty on a dry run)"
+    value: ${{ steps.run.outputs.pull-request }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run release-pr
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/release-pr/index.js"
+      env:
+        INPUT_GROUP: ${{ inputs.group }}
+        INPUT_PACKAGES: ${{ inputs.packages }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

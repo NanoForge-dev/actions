@@ -1,0 +1,51 @@
+import { $ } from "bun";
+
+const BOT = [
+  "-c",
+  "user.name=github-actions[bot]",
+  "-c",
+  "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+];
+
+export const checkoutBranch = async (branch: string, cwd = "."): Promise<void> => {
+  await $`git checkout -B ${branch}`.cwd(cwd);
+};
+
+/** Commits every change. Returns false when there was nothing to commit. */
+export const commitAll = async (message: string, cwd = "."): Promise<boolean> => {
+  await $`git add --all`.cwd(cwd);
+  if ((await $`git diff --cached --quiet`.cwd(cwd).nothrow()).exitCode === 0) return false;
+  await $`git ${BOT} commit -m ${message} --no-verify`.cwd(cwd);
+  return true;
+};
+
+/** Pushes the current branch, or `branch` to `origin/branch`. */
+export const push = async (cwd = ".", branch?: string): Promise<void> => {
+  if (branch)
+    await $`git push origin ${`refs/heads/${branch}:refs/heads/${branch}`} --no-verify`.cwd(cwd);
+  else await $`git push --no-verify`.cwd(cwd);
+};
+
+export const headSha = async (): Promise<string> => (await $`git rev-parse HEAD`.text()).trim();
+
+export const tagExists = async (tag: string): Promise<boolean> =>
+  (await $`git rev-parse --verify --quiet ${`refs/tags/${tag}`}`.nothrow().quiet()).exitCode === 0;
+
+/** Content of `path` at `ref`, or undefined when it doesn't exist there. */
+export const showFile = async (ref: string, path: string): Promise<string | undefined> => {
+  const result = await $`git show ${`${ref}:${path}`}`.nothrow().quiet();
+  return result.exitCode === 0 ? result.text() : undefined;
+};
+
+/** Full commit messages in `from..HEAD` (all history when `from` is undefined) touching `paths`. */
+export const commitMessages = async (
+  from: string | undefined,
+  paths: string[],
+): Promise<string[]> => {
+  const range = from ? `${from}..HEAD` : "HEAD";
+  const out = await $`git log ${range} --format=%B%x1e -- ${paths}`.text();
+  return out
+    .split("\x1e")
+    .map((message) => message.trim())
+    .filter(Boolean);
+};
