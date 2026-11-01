@@ -45,7 +45,7 @@ The release flow is unchanged from v2:
 
 1. **Pre-Release:** a `workflow_dispatch` takes a group, packages, a version and dry-run.
    - [`release-pr`](#release-pr) bumps the versions, writes the changelogs and opens a `releases/*` PR.
-   - When no version is given, it is resolved from the conventional commits since the last tag of the group, on the paths of the released packages: a breaking change (`!` or `BREAKING CHANGE:`) bumps the major version, `feat` the minor, `fix` and `perf` the patch.
+   - When no version is given, it is resolved from the conventional commits since the tag of the current version (built with `tagFormat`; the whole history when that tag doesn't exist), on the paths of the released packages: a breaking change (`!` or `BREAKING CHANGE:`) bumps the major version, `feat` the minor, `fix` and `perf` the patch. A shared group is bumped once, an independent group per package. With no such commit the run fails: give a version to release anyway.
 2. **Release:** when that PR is merged, [`release`](#release) publishes on npm every package whose `package.json` version changed. It then creates the tag(s) and GitHub release(s), and the docs are synced.
 3. **Beta:** any other merged PR publishes a beta of the groups with `betaOnMerge`.
 4. **Alpha:** a `workflow_dispatch` on a feature branch publishes an alpha.
@@ -144,7 +144,7 @@ Bumps the packages of a group, writes their changelogs (`pnpm run release` per p
 | `version`                           |             | Version to release. Empty: resolved from the commits      |
 | `config`, `dry-run`, `github-token` |             |                                                           |
 
-Outputs: `branch`, `version` (when it is shared), `pull-request`.
+Outputs: `branch`, `version` (when every package gets the same version), `pull-request` (empty on a dry run).
 
 ### `release`
 
@@ -182,7 +182,9 @@ Publishes NanoForge components and systems (`nanoforge.manifest.json`) to the Na
 
 ### `docs-sync`
 
-Copies `docs/` and `guides/` (and the API references when enabled) into the checked-out docs repository, regenerates its `docs.json` navigation, then commits and pushes.
+Copies `docs/docs/` and `docs/guides/` of the source repository (and the API references when enabled) into `docs/<category>/` and `guides/<category>/` of the checked-out docs repository, regenerates its `docs.json` navigation, then commits and pushes.
+
+The config is only read when `category` is empty: with a `category` input, `references` and `references-path` default to `false` and `docs/references`.
 
 | Input             | Default               | Description                                                        |
 | ----------------- | --------------------- | ------------------------------------------------------------------ |

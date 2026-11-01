@@ -19,7 +19,11 @@
       "required": ["category"],
       "additionalProperties": false,
       "properties": {
-        "category": { "description": "Docs category: engine, cli, editor...", "type": "string" },
+        "category": {
+          "description": "Docs category: engine, cli, editor...",
+          "type": "string",
+          "minLength": 1
+        },
         "references": {
           "description": "Generate the API references (pnpm run docs)",
           "type": "boolean",
@@ -28,6 +32,7 @@
         "referencesPath": {
           "description": "References directory",
           "type": "string",
+          "minLength": 1,
           "default": "docs/references"
         }
       }
@@ -72,7 +77,8 @@
         },
         "tagFormat": {
           "description": "Default: {version} (shared), {package}@{version} (independent)",
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "branchFormat": {
           "description": "Default: releases/{name}@{version} (shared), releases/{name}/{run} (independent). Must start with releases/",
@@ -81,7 +87,8 @@
         },
         "commitFormat": {
           "description": "Commit message and PR title. Default: chore({name}): release {name}@{version} (shared), chore({name}): release {packages} (independent)",
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "majorTag": {
           "description": "Also move the v<major> tag to the release",

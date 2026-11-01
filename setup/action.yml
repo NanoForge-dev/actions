@@ -2,7 +2,7 @@ name: "NanoForge setup"
 description: "Installs pnpm and Node.js with the pnpm store cached, then the dependencies"
 inputs:
   node-version:
-    description: "Node.js version. Empty: read from package.json (devEngines or engines.node) or .nvmrc"
+    description: "Node.js version. Empty: read from .nvmrc, else package.json (devEngines or engines.node)"
     default: ""
   install:
     description: "Run pnpm install --frozen-lockfile"

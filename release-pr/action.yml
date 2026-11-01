@@ -24,7 +24,7 @@ outputs:
     description: "Release branch"
     value: ${{ steps.run.outputs.branch }}
   version:
-    description: "Released version, when it is shared"
+    description: "Released version, when every package gets the same version"
     value: ${{ steps.run.outputs.version }}
   pull-request:
     description: "URL of the PR (empty on a dry run)"
