@@ -1,4 +1,4 @@
-import { setFailed, setOutput, warning } from "@actions/core";
+import { info, setFailed, setOutput } from "@actions/core";
 import { Glob } from "bun";
 import { readFileSync } from "node:fs";
 import { dirname, relative } from "path";
@@ -12,7 +12,7 @@ const main = async () => {
   const files = [...new Glob(pattern).scanSync({ dot: false })]
     .filter((file) => !file.split(/[\\/]/).includes("node_modules"))
     .sort();
-  if (!files.length) warning(`No coverage report matches "${pattern}"`);
+  if (!files.length) info(`No coverage report matches "${pattern}"`);
 
   const total: Coverage = parseLcov("");
   const lines = files.map((file) => {
@@ -28,7 +28,7 @@ const main = async () => {
   setOutput("lines", percent(total.lines));
   await writeSummary(`Coverage: ${percent(total.lines)} of lines`, false, [
     ["Total", files.length ? [coverageLine("all", total)] : []],
-    ["Packages", files.length > 1 ? lines : []],
+    ["Reports", lines],
   ]);
 };
 

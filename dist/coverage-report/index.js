@@ -699,7 +699,7 @@ var main = async () => {
   const pattern = getString("files", "**/coverage/lcov.info");
   const files = [...new Glob(pattern).scanSync({ dot: false })].filter((file) => !file.split(/[\\/]/).includes("node_modules")).sort();
   if (!files.length)
-    warning(`No coverage report matches "${pattern}"`);
+    info(`No coverage report matches "${pattern}"`);
   const total = parseLcov("");
   const lines = files.map((file) => {
     const coverage = parseLcov(readFileSync(file, "utf-8"));
@@ -712,7 +712,7 @@ var main = async () => {
   setOutput("lines", percent(total.lines));
   await writeSummary(`Coverage: ${percent(total.lines)} of lines`, false, [
     ["Total", files.length ? [coverageLine("all", total)] : []],
-    ["Packages", files.length > 1 ? lines : []]
+    ["Reports", lines]
   ]);
 };
 main().catch((error2) => setFailed(error2 instanceof Error ? error2.message : String(error2)));

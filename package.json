@@ -26,6 +26,7 @@
   "scripts": {
     "build": "bun build src/*/index.ts --target=bun --outdir dist --root src",
     "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text",
     "typecheck": "tsc --noEmit",
     "lint": "prettier --check . && eslint --format=pretty src",
     "format": "prettier --write . && eslint --fix --format=pretty src",
