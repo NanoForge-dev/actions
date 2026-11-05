@@ -63,3 +63,10 @@ export const commitMessages = async (
     .map((message) => message.trim())
     .filter(Boolean);
 };
+
+/** Last commit whose diff adds or removes a line matching `pattern` in `path`, or undefined. */
+export const lastCommitChanging = async (
+  path: string,
+  pattern: string,
+): Promise<string | undefined> =>
+  (await $`git log -1 --format=%H ${`-G${pattern}`} -- ${path}`.text()).trim() || undefined;

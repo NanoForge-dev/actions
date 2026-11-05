@@ -1,5 +1,5 @@
 name: "NanoForge registry release"
-description: "Publishes NanoForge components and systems to the NanoForge registry in dependency order"
+description: "Publishes, in dependency order, the NanoForge registry packages whose manifest version is newer than the registry, and tags each one {package}@{version}"
 inputs:
   path:
     description: "Directory holding the packages (nanoforge.manifest.json files)"
@@ -11,8 +11,18 @@ inputs:
     description: "Comma-separated packages not to release, unless another released package needs them"
     default: ""
   dry-run:
-    description: "Log what would happen without pushing, publishing or tagging"
+    description: "Log what would happen without publishing or tagging"
     default: "false"
+  github-token:
+    description: "Token that creates the {package}@{version} tags"
+    default: "${{ github.token }}"
+outputs:
+  released:
+    description: '"true" when something was published'
+    value: ${{ steps.run.outputs.released }}
+  packages:
+    description: "JSON list of the published {name, version}"
+    value: ${{ steps.run.outputs.packages }}
 runs:
   using: composite
   steps:
@@ -20,7 +30,7 @@ runs:
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       with:
         bun-version-file: ${{ github.action_path }}/../.bun-version
-    - name: Run nf-registry-release
+    - name: Publish the newer registry packages
       id: run
       shell: bash
       run: bun "$GITHUB_ACTION_PATH/../dist/nf-registry-release/index.js"
@@ -29,3 +39,4 @@ runs:
         INPUT_PACKAGE: ${{ inputs.package }}
         INPUT_EXCLUDE: ${{ inputs.exclude }}
         INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

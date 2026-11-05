@@ -3,7 +3,12 @@ import { expect, test } from "bun:test";
 import { selectNfPackages } from "../nf-registry-release/packages";
 import { sortReleaseTree, withDependencies } from "./release-tree";
 
-const node = (name: string, ...dependsOn: string[]) => ({ name, dependsOn, path: name });
+const node = (name: string, ...dependsOn: string[]) => ({
+  name,
+  dependsOn,
+  path: name,
+  version: "1.0.0",
+});
 const names = (tree: { name: string }[][]) => tree.map((batch) => batch.map(({ name }) => name));
 
 test("sortReleaseTree publishes dependencies first, ignoring external ones", () => {
