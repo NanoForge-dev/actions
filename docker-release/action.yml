@@ -52,6 +52,10 @@ runs:
         if [ -n "$VALUES_FILE" ] && [ -z "$CLOUD_IAC_TOKEN" ]; then echo "::error::cloud-iac-token is required with values-file"; exit 1; fi
         echo "image=${IMAGE,,}" >> "$GITHUB_OUTPUT"
 
+    # The docker-container driver of buildx can export a layer cache; the default docker driver can't.
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
     - name: Log in to the container registry
       uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
       with:
@@ -68,6 +72,7 @@ runs:
           type=semver,pattern={{version}},value=${{ inputs.version }}
 
     - name: Build and push the image
+      id: build
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
         context: ${{ inputs.context }}
@@ -77,6 +82,10 @@ runs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: ${{ inputs.build-args }}
+        # A registry cache, not type=gha: release runs start from pull_request events, whose GitHub cache scope
+        # (refs/pull/N/merge) no later release can read. Only jobs that can push the image can write it.
+        cache-from: type=registry,ref=${{ inputs.registry }}/${{ steps.check.outputs.image }}:buildcache
+        cache-to: type=registry,ref=${{ inputs.registry }}/${{ steps.check.outputs.image }}:buildcache,mode=max
 
     - name: Check out cloud-iac
       if: inputs.values-file != ''
@@ -88,6 +97,7 @@ runs:
         persist-credentials: false
 
     - name: Set the image tag in cloud-iac
+      id: cloud-iac
       if: inputs.values-file != ''
       shell: bash
       working-directory: cloud-iac
@@ -114,3 +124,23 @@ runs:
           echo "Push failed (attempt $attempt), retrying"; sleep $((attempt * 5))
         done
         exit 1
+
+    - name: Write the report
+      if: always()
+      shell: bash
+      env:
+        TAGS: ${{ steps.meta.outputs.tags }}
+        DIGEST: ${{ steps.build.outputs.digest }}
+        BUILD: ${{ steps.build.outcome }}
+        VERSION: ${{ inputs.version }}
+        VALUES_FILE: ${{ inputs.values-file }}
+        CLOUD_IAC: ${{ steps.cloud-iac.outcome }}
+      run: |
+        {
+          printf '# Docker release %s\n\n## Image\n\n' "$VERSION"
+          if [ -n "$TAGS" ]; then printf '%s\n' "$TAGS" | sed 's/^/- /'; else printf '_None_\n'; fi
+          printf '\n- build: %s\n' "$BUILD"
+          [ -n "$DIGEST" ] && printf -- '- digest: %s\n' "$DIGEST"
+          printf '\n## cloud-iac\n\n'
+          if [ -n "$VALUES_FILE" ]; then printf -- '- %s: %s\n\n' "$VALUES_FILE" "$CLOUD_IAC"; else printf '_None_\n\n'; fi
+        } >> "$GITHUB_STEP_SUMMARY"

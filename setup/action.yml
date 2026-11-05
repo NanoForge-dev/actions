@@ -48,7 +48,9 @@ runs:
         else echo "file=package.json" >> "$GITHUB_OUTPUT"
         fi
 
+    # Caches the pnpm store, keyed on pnpm-lock.yaml.
     - name: Install Node.js
+      id: setup-node
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
@@ -56,9 +58,19 @@ runs:
         cache: pnpm
         registry-url: ${{ inputs.registry-url }}
 
-    - name: Install dependencies
+    - name: Install the dependencies
       if: inputs.install == 'true'
       shell: bash
       run: pnpm install --frozen-lockfile --prefer-offline --loglevel error
       env:
         HUSKY: "0"
+
+    - name: Write the report
+      shell: bash
+      env:
+        NODE: ${{ steps.setup-node.outputs.node-version }}
+        CACHE_HIT: ${{ steps.setup-node.outputs.cache-hit }}
+        INSTALL: ${{ inputs.install }}
+      run: |
+        printf '# Setup\n\n## Tools\n\n- Node.js %s\n- pnpm %s (store cache hit: %s)\n- dependencies installed: %s\n\n' \
+          "$NODE" "$(pnpm --version)" "${CACHE_HIT:-false}" "$INSTALL" >> "$GITHUB_STEP_SUMMARY"

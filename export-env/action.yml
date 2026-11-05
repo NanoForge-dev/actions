@@ -15,6 +15,7 @@ runs:
       # An allowlist, not a denylist: anything else (NODE_OPTIONS, GIT_*, HOME, npm_config_*...) could change
       # how the later steps that hold tokens run.
       run: |
+        keys=()
         while IFS= read -r line; do
           [ -z "$line" ] && continue
           key="${line%%=*}"
@@ -22,4 +23,7 @@ runs:
             echo "::error::export-env: key \"$key\" is not allowed (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)"; exit 1
           fi
           printf '%s\n' "$line" >> "$GITHUB_ENV"
+          keys+=("$key")
         done <<< "$EXPORT_ENV"
+        # Keys only: the values are public build vars, but a report doesn't need them.
+        { printf '# Exported env\n\n## Keys\n\n'; printf -- '- %s\n' "${keys[@]}"; printf '\n'; } >> "$GITHUB_STEP_SUMMARY"
