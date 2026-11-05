@@ -1,4 +1,6 @@
 name: Alpha Release
+# The alpha is <next version>-alpha.<branch>.<n>: the exact number is in the job summary.
+run-name: Alpha release ${{ inputs.packages }} on ${{ github.ref_name }}${{ inputs.dry-run && ' (dry run)' || '' }}
 
 on:
   workflow_dispatch:

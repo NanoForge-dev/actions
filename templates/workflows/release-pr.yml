@@ -1,4 +1,5 @@
 name: Release PR
+run-name: Release PR ${{ inputs.group || '(first group)' }} ${{ inputs.packages }} ${{ inputs.version || '(auto version)' }}${{ inputs.dry-run && ' (dry run)' || '' }}
 
 on:
   workflow_dispatch:

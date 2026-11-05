@@ -22,7 +22,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Label pull request
+      - name: Label the pull request from .github/labeler.yml
         uses: actions/labeler@v7
         with:
           repo-token: ${{ github.token }}
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - name: Validate pull request title
+      - name: Check the title follows the conventional commits
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |

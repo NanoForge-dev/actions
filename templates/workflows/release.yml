@@ -1,4 +1,8 @@
 name: Release
+# The release PR title holds the versions (commitFormat); any other merged PR publishes the betas.
+run-name: >-
+  ${{ startsWith(github.head_ref, 'releases/') && format('Release: {0}', github.event.pull_request.title)
+  || format('Beta release of {0}', github.event.pull_request.merge_commit_sha) }}
 
 on:
   pull_request:

@@ -1,5 +1,6 @@
 # This repo's own release: tags <version>, moves v<major> and creates the GitHub release with the local ./release action.
 name: Self Release
+run-name: "Self release: ${{ github.event.pull_request.title }}"
 
 on:
   pull_request:
@@ -12,7 +13,7 @@ permissions: {}
 
 jobs:
   release:
-    name: Release
+    name: Release (${{ github.event.pull_request.title }})
     runs-on: ubuntu-latest
     if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
     permissions:
@@ -34,7 +35,7 @@ jobs:
 
       # Moving v3 onto commits that change workflows may need more than GITHUB_TOKEN can do: the bot token
       # (with the workflow permission) is used when it is set. A failed move fails the job.
-      - name: Release
+      - name: Tag the release, move v3 and create the GitHub release
         uses: ./release
         with:
           github-token: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}

@@ -33,7 +33,7 @@ permissions: {}
 
 jobs:
   release-pr:
-    name: Create release PR
+    name: Release PR (${{ inputs.version || 'auto version' }})
     runs-on: ubuntu-latest
     if: github.repository_owner == 'NanoForge-dev'
     permissions:
@@ -54,10 +54,10 @@ jobs:
         with:
           env: ${{ inputs.prepare-env }}
 
-      - name: Prepare
+      - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Create release PR
+      - name: Bump the versions and open the release PR
         id: release-pr
         uses: nanoforge-dev/actions/release-pr@v3
         with:

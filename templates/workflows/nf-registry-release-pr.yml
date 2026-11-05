@@ -1,0 +1,21 @@
+name: NanoForge Registry Release PR
+run-name: NanoForge registry release PR${{ inputs.dry-run && ' (dry run)' || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-pr:
+    name: NanoForge registry release PR
+    uses: nanoforge-dev/actions/.github/workflows/nf-registry-release-pr.yml@v3
+    with:
+      dry-run: ${{ inputs.dry-run }}

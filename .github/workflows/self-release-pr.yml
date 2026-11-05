@@ -1,6 +1,7 @@
 # This repo's own release PR. It runs the local actions (./release-pr), not @v3, so a release never
 # depends on the previous one. Other repos use release-pr.yml through templates/workflows/release-pr.yml.
 name: Self Release PR
+run-name: Self release PR ${{ inputs.version || '(auto version)' }}${{ inputs.dry-run && ' (dry run)' || '' }}
 
 on:
   workflow_dispatch:
@@ -32,10 +33,10 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Prepare
+      - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Create release PR
+      - name: Bump the version and open the release PR
         uses: ./release-pr
         with:
           version: ${{ inputs.version }}

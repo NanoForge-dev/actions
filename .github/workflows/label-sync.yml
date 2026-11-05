@@ -26,7 +26,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Label sync
+      - name: Sync the labels with .github/labels.yml
         uses: crazy-max/ghaction-github-labeler@548a7c3603594ec17c819e1239f281a3b801ab4d # v6.0.0
         with:
           github-token: ${{ github.token }}
