@@ -6,7 +6,7 @@
     <br />
     <p>
         <a href="https://github.com/NanoForge-dev/actions/releases"><img src="https://img.shields.io/github/v/release/NanoForge-dev/actions.svg?maxAge=3600" alt="Latest release" /></a>
-		<a href="https://github.com/NanoForge-dev/actions/actions/workflows/tests.yml"><img src="https://github.com/NanoForge-dev/actions/actions/workflows/tests.yml/badge.svg" alt="Tests status" /></a>
+		<a href="https://github.com/NanoForge-dev/actions/actions/workflows/self-tests.yml"><img src="https://github.com/NanoForge-dev/actions/actions/workflows/self-tests.yml/badge.svg" alt="Tests status" /></a>
         <a href="https://github.com/NanoForge-dev/actions/commits/main/utils/actions"><img src="https://img.shields.io/github/last-commit/NanoForge-dev/actions.svg?logo=github&logoColor=ffffff" alt="Last commit" /></a>
     	<a href="https://github.com/NanoForge-dev/actions/graphs/contributors"><img src="https://img.shields.io/github/contributors/NanoForge-dev/actions.svg?maxAge=3600&logo=github&logoColor=fff&color=00c7be" alt="Contributors" /></a>
     </p>
@@ -14,7 +14,7 @@
 
 ## About
 
-`NanoForge-dev/actions` holds the GitHub actions and reusable workflows that every NanoForge repository uses for its CI: release PRs, releases, pre-releases, docs sync, Docker images and triage. Repositories don't install anything: they call the actions and workflows by git tag.
+`NanoForge-dev/actions` holds the GitHub actions and reusable workflows that every NanoForge repository uses for its CI: release PRs, releases, pre-releases, tests (coding style, unit, end-to-end, coverage, dependency audit), NanoForge registry releases, docs sync, Docker images and triage. Repositories don't install anything: they call the actions and workflows by git tag.
 
 Most of the sources of this package come from [discord.js][discordjs-source]. Special thanks to them!
 
@@ -108,17 +108,48 @@ A `tagFormat` must contain `{version}`, can't use `{packages}` or `{run}`, must 
 
 Callers are in [`templates/workflows`](templates/workflows).
 
-| Workflow                  | Trigger in the caller                               | Inputs                                                   | Outputs                                          |
-| ------------------------- | --------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------ |
-| `release-pr.yml`          | `workflow_dispatch`                                 | `group`, `packages`, `version`, `dry-run`, `prepare-env` | `pull-request`                                   |
-| `release.yml`             | `pull_request: closed` on `main`                    | `prepare-env`                                            | `released`, `version`, `tag`, `tags`, `packages` |
-| `alpha-release.yml`       | `workflow_dispatch` (not on the default branch)     | `packages`, `dry-run`, `prepare-env`                     |                                                  |
-| `nf-registry-release.yml` | `workflow_dispatch`                                 | `package`, `exclude`, `path`, `dry-run`, `prepare-env`   |                                                  |
-| `pr-triage.yml`           | `pull_request_target`                               |                                                          |                                                  |
-| `issue-triage.yml`        | `issues: opened`                                    |                                                          |                                                  |
-| `label-sync.yml`          | `push` of `.github/labels.yml`, `workflow_dispatch` |                                                          |                                                  |
+| Workflow                     | Trigger in the caller                                 | Inputs                                                                                                                        | Outputs                                          |
+| ---------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `release-pr.yml`             | `workflow_dispatch`                                   | `group`, `packages`, `version`, `dry-run`, `prepare-env`                                                                      | `pull-request`                                   |
+| `release.yml`                | `pull_request: closed` on `main`                      | `prepare-env`                                                                                                                 | `released`, `version`, `tag`, `tags`, `packages` |
+| `alpha-release.yml`          | `workflow_dispatch` (not on the default branch)       | `packages`, `dry-run`, `prepare-env`                                                                                          |                                                  |
+| `nf-registry-release-pr.yml` | `workflow_dispatch`                                   | `path`, `dry-run`                                                                                                             | `pull-request`, `packages`                       |
+| `nf-registry-release.yml`    | `pull_request: closed` on `main`, `workflow_dispatch` | `package`, `exclude`, `path`, `dry-run`, `prepare-env`                                                                        | `released`, `packages`                           |
+| `tests.yml`                  | `pull_request`, `push` on `main`, `workflow_dispatch` | `style-scripts`, `unit-script`, `coverage-files`, `e2e-script`, `e2e-report-path`, `playwright`, `audit-level`, `prepare-env` |                                                  |
+| `pr-triage.yml`              | `pull_request_target`                                 |                                                                                                                               |                                                  |
+| `issue-triage.yml`           | `issues: opened`                                      |                                                                                                                               |                                                  |
+| `label-sync.yml`             | `push` of `.github/labels.yml`, `workflow_dispatch`   |                                                                                                                               |                                                  |
 
 `prepare-env` takes env vars for the prepare action, one static `KEY=VALUE` per line (e.g. the editor's `PUBLIC_*` build vars). Only `NODE_ENV`, `PUBLIC_*`, `NEXT_PUBLIC_*` and `VITE_*` keys are allowed (through the [`export-env`](#export-env) action): any other key could change how the later steps that hold tokens run. Never pass PR-controlled text through it.
+
+### Tests
+
+`tests.yml` runs one job per check, so a failure points at the right one:
+
+| Job                       | Runs                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Coding style (<script>)` | `pnpm run <script>`, one matrix leg per entry of `style-scripts` (default `["lint"]`, `[]`: none)                               |
+| `Unit tests`              | `pnpm run <unit-script>` (default `test:unit`, empty: no job), then the coverage report                                         |
+| `End-to-end tests`        | `pnpm run <e2e-script>` (empty by default: no job)                                                                              |
+| `Dependency audit`        | `pnpm audit` on the lockfile, failing from `audit-level` (default `high`; `low`, `moderate`, `high`, `critical`; empty: no job) |
+
+- **Coverage:** the unit job summarizes the lcov reports matching `coverage-files` (default `**/coverage/lcov.info`; empty: none) with [`coverage-report`](#coverage-report) and uploads them as the `coverage` artifact. The unit script must write them.
+- **End-to-end hook:** when the repo has a `./.github/actions/prepare-e2e` action, the e2e job runs it after `prepare` (browsers, services, another repo's build). `playwright: true` caches `~/.cache/ms-playwright`, keyed on the lockfile. When the e2e tests fail, `e2e-report-path` (e.g. Playwright traces) is uploaded as the `e2e-report` artifact.
+- **Caching:** the pnpm store is cached by [`setup`](#setup) and the turbo outputs (`.turbo/cache`) per job when the repo has a `turbo.json`. The audit job only needs Node.js and pnpm: it installs nothing and runs no `prepare`.
+- **Reports:** every job writes its result in the job summary.
+
+### Registry releases
+
+NanoForge registry packages (`nanoforge.manifest.json`) are released through a PR, like npm packages:
+
+1. **`nf-registry-release-pr.yml`** (`workflow_dispatch`) runs [`nf-registry-release-pr`](#nf-registry-release-pr): it bumps the manifest of every package changed since its last release and opens an `nf-releases/*` PR.
+2. **`nf-registry-release.yml`** runs when that PR is merged (a `pull_request: closed` caller on `main`; any other PR is ignored) or from a dispatch. It publishes, with [`nf-registry-release`](#nf-registry-release), only the packages whose manifest version is newer than the registry, then tags them `{package}@{version}`.
+
+The caller needs `contents: write` (and `pull-requests: write` for the PR workflow). The tagged commit is the merge commit of the PR.
+
+### Run names and summaries
+
+The templates set a `run-name` that shows the version or package and `(dry run)`, e.g. `Release PR engine 1.2.0` or `Alpha release core on feat/x`. Every action writes a summary (a title, then sections such as the tags, the packages or the image) to the job summary (`$GITHUB_STEP_SUMMARY`), with a note on dry runs. Steps are named after what they do.
 
 ### Deploy jobs
 
@@ -151,7 +182,7 @@ Every action that takes `config` reads `.github/nanoforge.json` when it is empty
 
 ### `setup`
 
-Installs pnpm and Node.js, with the pnpm store cached, then runs `pnpm install --frozen-lockfile`.
+Installs pnpm and Node.js, with the pnpm store cached (keyed on `pnpm-lock.yaml`), then runs `pnpm install --frozen-lockfile`. The summary lists the Node.js and pnpm versions and whether the store cache hit.
 
 | Input          | Default                      | Description                                                     |
 | -------------- | ---------------------------- | --------------------------------------------------------------- |
@@ -196,16 +227,41 @@ Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm
 
 Output: `versions`.
 
+### `nf-registry-release-pr`
+
+For each package of `path`, bumps its manifest version when the registry has nothing newer: the bump comes from the conventional commits that touched the package since its tag `{package}@{version}` (else since the last change of its manifest version): breaking is major, `feat` minor, `fix` and `perf` patch. A package with no version and no release gets `1.0.0`. A manifest version already newer than the registry is kept. It then pushes an `nf-releases/<run>` branch and opens the PR. The checkout needs the full history and tags (`fetch-depth: 0`, `fetch-tags: true`).
+
+| Input          | Default        | Description                        |
+| -------------- | -------------- | ---------------------------------- |
+| `path`         | `packages`     | Directory holding the packages     |
+| `dry-run`      | `false`        |                                    |
+| `github-token` | `github.token` | Pushes the branch and opens the PR |
+
+Outputs: `pull-request` (empty on a dry run or when nothing changed), `packages` (JSON `{name, version}` list).
+
 ### `nf-registry-release`
 
-Publishes NanoForge components and systems (`nanoforge.manifest.json`) to the NanoForge registry with `nf publish`, dependencies first. It needs the `nf` CLI, logged in.
+Publishes NanoForge components and systems (`nanoforge.manifest.json`) to the NanoForge registry with `nf publish`, dependencies first, and only the packages whose manifest version is newer than the registry (the others are listed as not published). Each published package is tagged `{package}@{version}` on the checked-out commit. It needs the `nf` CLI, logged in, and a token that can create tags (`contents: write`).
 
-| Input     | Default    | Description                                                                   |
-| --------- | ---------- | ----------------------------------------------------------------------------- |
-| `path`    | `packages` | Directory holding the packages                                                |
-| `package` | `all`      | One package to release with its dependencies. `all` (or empty): every package |
-| `exclude` |            | Packages not to release, unless a released package needs them                 |
-| `dry-run` | `false`    |                                                                               |
+| Input          | Default        | Description                                                                   |
+| -------------- | -------------- | ----------------------------------------------------------------------------- |
+| `path`         | `packages`     | Directory holding the packages                                                |
+| `package`      | `all`          | One package to release with its dependencies. `all` (or empty): every package |
+| `exclude`      |                | Packages not to release, unless a released package needs them                 |
+| `dry-run`      | `false`        |                                                                               |
+| `github-token` | `github.token` | Creates the tags                                                              |
+
+Outputs: `released` (`true` when something was published), `packages` (JSON `{name, version}` list).
+
+### `coverage-report`
+
+Sums the lcov reports (`LF/LH`, `FNF/FNH`, `BRF/BRH`) and writes the totals, then one line per report named after its package, in the job summary. `node_modules` is skipped. It doesn't fail when no report matches.
+
+| Input   | Default                 | Description                                  |
+| ------- | ----------------------- | -------------------------------------------- |
+| `files` | `**/coverage/lcov.info` | Glob of the lcov reports, from the repo root |
+
+Output: `lines` (line coverage of all the reports, e.g. `84.47%`).
 
 ### `docs-sync`
 
@@ -236,7 +292,7 @@ Exports static build variables, one `KEY=VALUE` per line, to the next steps of t
 
 ### `docker-release`
 
-Builds and pushes `<registry>/<image>:<version>`, then sets that tag in a Helm values file of `NanoForge-dev/cloud-iac` and pushes it (it retries when other image jobs push at the same time).
+Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the layers in the registry under `<registry>/<image>:buildcache` (not the GitHub cache: release runs start from `pull_request` events, whose cache scope no later run can read), then sets that tag in a Helm values file of `NanoForge-dev/cloud-iac` and pushes it (it retries when other image jobs push at the same time).
 
 | Input                             | Default                       | Description                                             |
 | --------------------------------- | ----------------------------- | ------------------------------------------------------- |
@@ -262,6 +318,8 @@ pnpm build       # bundles src/*/index.ts into dist/
 ```
 
 To run an action locally, set its inputs as `INPUT_<NAME>` env vars, for example `INPUT_DRY_RUN=true bun dist/release-pr/index.js`.
+
+This repository's own CI is `self-tests.yml` (coding style and typecheck, unit tests with coverage, the `dist/` freshness check, actionlint and the dependency audit). It uses the local actions (`./setup`, `./coverage-report`), not `@v3`, so a change is tested by its own code. The `tests.yml` workflow is for the other repositories.
 
 This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag onto commits that change workflows may need a token with the workflow permission: `self-release.yml` uses `NANOFORGE_BOT_TOKEN` when it is set, and the job fails if the move fails.
 
