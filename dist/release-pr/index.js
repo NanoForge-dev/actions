@@ -3533,6 +3533,7 @@ var commitMessages = async (from, paths) => {
   const out = await $`git log ${range} --format=%B%x1e -- ${paths}`.text();
   return out.split("\x1E").map((message) => message.trim()).filter(Boolean);
 };
+var lastCommitChanging = async (path, pattern) => (await $`git log -1 --format=%H ${`-G${pattern}`} -- ${path}`.text()).trim() || undefined;
 
 // node_modules/.pnpm/@actions+github@9.1.1/node_modules/@actions/github/lib/context.js
 import { readFileSync, existsSync as existsSync2 } from "fs";
@@ -7611,7 +7612,7 @@ ${lines.map((line) => `- ${line}`).join(`
   setOutput("branch", branch);
   setOutput("version", tokens.version ?? "");
   setOutput("pull-request", url);
-  await writeSummary("Release PR", dry, [
+  await writeSummary(`Release PR ${tokens.packages}`, dry, [
     ["Packages", lines],
     ["Branch", [`\`${branch}\``]],
     ["Commit", [`\`${message}\``]]

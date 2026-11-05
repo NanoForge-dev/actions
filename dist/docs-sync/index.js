@@ -817,6 +817,7 @@ var commitMessages = async (from, paths) => {
   const out = await $`git log ${range} --format=%B%x1e -- ${paths}`.text();
   return out.split("\x1E").map((message) => message.trim()).filter(Boolean);
 };
+var lastCommitChanging = async (path, pattern) => (await $`git log -1 --format=%H ${`-G${pattern}`} -- ${path}`.text()).trim() || undefined;
 
 // src/lib/inputs.ts
 import process2 from "process";
@@ -834,6 +835,33 @@ var getBoolean = (name, fallback) => {
 };
 var getList = (name) => parseList(readInput(name));
 var parseList = (value) => value.split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
+
+// src/lib/summary.ts
+var writeSummary = async (title, dry, sections) => {
+  const result = summary.addHeading(title);
+  if (dry)
+    result.addRaw(`
+
+> [!NOTE]
+> This is a dry run.
+
+`);
+  for (const [heading, lines] of sections) {
+    result.addHeading(heading, 2);
+    if (!lines.length)
+      result.addRaw(`
+_None_
+
+`);
+    else
+      result.addRaw(`
+${lines.map((line) => `- ${line}`).join(`
+`)}
+
+`);
+  }
+  await result.write();
+};
 
 // src/lib/workspace.ts
 var {$: $2, file: file2, write } = globalThis.Bun;
@@ -1082,5 +1110,10 @@ var main = async () => {
   await generateDocsConfig(docsPath);
   const changed = await commitAll(`chore(${repository}): deploy docs${version ? ` v${version}` : ""}`, docsPath);
   setOutput("changed", changed ? "true" : "false");
+  await writeSummary(`Docs sync ${repository}${version ? ` v${version}` : ""}`, false, [
+    ["Category", [`\`${category}\``]],
+    ["References", references ? [`\`${version}\``] : []],
+    ["Docs commit", changed ? ["Committed, pushed by the next step"] : []]
+  ]);
 };
 main().catch((error2) => setFailed(error2 instanceof Error ? error2.message : String(error2)));

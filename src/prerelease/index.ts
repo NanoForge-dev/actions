@@ -57,6 +57,9 @@ const main = async () => {
   if (unknown.length) throw new Error(`Not in the config: ${unknown.join(", ")}`);
   if (!names.length) {
     info("No package to pre-release");
+    await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [
+      ["Published", []],
+    ]);
     return;
   }
 
@@ -113,10 +116,14 @@ const main = async () => {
     await push(".", undefined, process.env.GITHUB_TOKEN);
 
   setOutput("versions", JSON.stringify(versions));
-  await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [
-    ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
-    ["Deprecated", deprecated],
-  ]);
+  await writeSummary(
+    `${channel === "alpha" ? "Alpha" : "Beta"} release ${versions.join(", ")}`,
+    dry,
+    [
+      ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
+      ["Deprecated", deprecated],
+    ],
+  );
 };
 
 main().catch((error: unknown) => setFailed(error instanceof Error ? error.message : String(error)));

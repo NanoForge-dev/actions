@@ -3325,7 +3325,7 @@ function endGroup() {
 }
 
 // src/release/index.ts
-var import_semver = __toESM(require_semver2(), 1);
+var import_semver2 = __toESM(require_semver2(), 1);
 var {$: $3 } = globalThis.Bun;
 import { join as join4 } from "path";
 
@@ -3577,6 +3577,7 @@ var commitMessages = async (from, paths) => {
   const out = await $`git log ${range} --format=%B%x1e -- ${paths}`.text();
   return out.split("\x1E").map((message) => message.trim()).filter(Boolean);
 };
+var lastCommitChanging = async (path, pattern) => (await $`git log -1 --format=%H ${`-G${pattern}`} -- ${path}`.text()).trim() || undefined;
 
 // node_modules/.pnpm/@actions+github@9.1.1/node_modules/@actions/github/lib/context.js
 import { readFileSync, existsSync as existsSync2 } from "fs";
@@ -7302,12 +7303,24 @@ var getList = (name) => parseList(readInput(name));
 var parseList = (value) => value.split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
 
 // src/lib/registry.ts
+var import_semver = __toESM(require_semver2(), 1);
 var {sleep } = globalThis.Bun;
 var TIMEOUT_MS = 5 * 60 * 1000;
 var INTERVAL_MS = 15000;
 var NF_REGISTRY_URL = "https://api.nanoforge.eu/registry";
+var ABBREVIATED = "application/vnd.npm.install-v1+json";
 var isOnNpm = async (name, version) => (await fetch(`https://registry.npmjs.org/${name}/${version}`)).ok;
-var isOnNfRegistry = async (name) => (await fetch(`${NF_REGISTRY_URL}/${name}`)).ok;
+var nfRegistryVersions = async (name) => {
+  const res = await fetch(`${NF_REGISTRY_URL}/${name}`, { headers: { accept: ABBREVIATED } });
+  if (res.status === 404)
+    return [];
+  if (!res.ok)
+    throw new Error(`NanoForge registry: GET ${name} answered ${res.status}`);
+  const { versions } = await res.json();
+  return Object.keys(versions ?? {});
+};
+var isOnNfRegistry = async (name, version) => (await nfRegistryVersions(name)).includes(version);
+var isNewerThan = (version, published) => published.every((other) => import_semver.default.gt(version, other));
 var waitUntil = async (label, check) => {
   const deadline = performance.now() + TIMEOUT_MS;
   while (!await check()) {
@@ -7499,7 +7512,7 @@ var planTags = async (released) => {
 var createTags = async (tagged, dry) => {
   const sha = await headSha();
   for (const { tag, version, changelog, group } of tagged) {
-    const major = `v${import_semver.default.major(version)}`;
+    const major = `v${import_semver2.default.major(version)}`;
     if (dry) {
       info(`[DRY] Would create ${group.githubRelease ? "the release" : "the tag"} "${tag}"${group.majorTag ? ` and move "${major}"` : ""}`);
       continue;
@@ -7519,6 +7532,7 @@ var main = async () => {
   setOutput("released", released.length ? "true" : "false");
   if (!released.length) {
     info("No package of the config changed version in this commit: nothing to release");
+    await writeSummary("Release", dry, [["Tags", []]]);
     return;
   }
   const tagged = await planTags(released);
@@ -7531,7 +7545,7 @@ var main = async () => {
   setOutput("tag", first.tag);
   setOutput("tags", JSON.stringify(tagged.map(({ tag }) => tag)));
   setOutput("packages", JSON.stringify(released.map(({ pkg }) => ({ name: pkg.name, version: pkg.version }))));
-  await writeSummary("Release", dry, [
+  await writeSummary(`Release ${tagged.map(({ tag }) => tag).join(", ")}`, dry, [
     ["Tags", tagged.map(({ tag }) => `\`${tag}\``)],
     ["Published on npm", published],
     ["Not published on npm", skipped]

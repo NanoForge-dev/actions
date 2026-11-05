@@ -180,7 +180,7 @@ const main = async () => {
   setOutput("branch", branch);
   setOutput("version", tokens.version ?? "");
   setOutput("pull-request", url);
-  await writeSummary("Release PR", dry, [
+  await writeSummary(`Release PR ${tokens.packages}`, dry, [
     ["Packages", lines],
     ["Branch", [`\`${branch}\``]],
     ["Commit", [`\`${message}\``]],

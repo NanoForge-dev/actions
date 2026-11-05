@@ -150,6 +150,7 @@ const main = async () => {
   setOutput("released", released.length ? "true" : "false");
   if (!released.length) {
     info("No package of the config changed version in this commit: nothing to release");
+    await writeSummary("Release", dry, [["Tags", []]]);
     return;
   }
 
@@ -170,7 +171,7 @@ const main = async () => {
     JSON.stringify(released.map(({ pkg }) => ({ name: pkg.name, version: pkg.version }))),
   );
 
-  await writeSummary("Release", dry, [
+  await writeSummary(`Release ${tagged.map(({ tag }) => tag).join(", ")}`, dry, [
     ["Tags", tagged.map(({ tag }) => `\`${tag}\``)],
     ["Published on npm", published],
     ["Not published on npm", skipped],

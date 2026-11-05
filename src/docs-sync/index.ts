@@ -5,6 +5,7 @@ import { join } from "path";
 import { loadConfig } from "../lib/config";
 import { commitAll } from "../lib/git";
 import { getBoolean, getString } from "../lib/inputs";
+import { writeSummary } from "../lib/summary";
 import { rootPath } from "../lib/workspace";
 import { copyDocs } from "./copy-docs";
 import { generateDocsConfig } from "./generate/generate-config";
@@ -46,6 +47,11 @@ const main = async () => {
     docsPath,
   );
   setOutput("changed", changed ? "true" : "false");
+  await writeSummary(`Docs sync ${repository}${version ? ` v${version}` : ""}`, false, [
+    ["Category", [`\`${category}\``]],
+    ["References", references ? [`\`${version}\``] : []],
+    ["Docs commit", changed ? ["Committed, pushed by the next step"] : []],
+  ]);
 };
 
 main().catch((error: unknown) => setFailed(error instanceof Error ? error.message : String(error)));

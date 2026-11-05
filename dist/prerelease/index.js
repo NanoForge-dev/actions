@@ -3523,6 +3523,7 @@ var commitMessages = async (from, paths) => {
   const out = await $`git log ${range} --format=%B%x1e -- ${paths}`.text();
   return out.split("\x1E").map((message) => message.trim()).filter(Boolean);
 };
+var lastCommitChanging = async (path, pattern) => (await $`git log -1 --format=%H ${`-G${pattern}`} -- ${path}`.text()).trim() || undefined;
 
 // node_modules/.pnpm/@actions+github@9.1.1/node_modules/@actions/github/lib/context.js
 import { readFileSync, existsSync as existsSync2 } from "fs";
@@ -7414,6 +7415,9 @@ var main = async () => {
     throw new Error(`Not in the config: ${unknown.join(", ")}`);
   if (!names.length) {
     info("No package to pre-release");
+    await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [
+      ["Published", []]
+    ]);
     return;
   }
   const onDefaultBranch = process5.env.GITHUB_REF_NAME === defaultBranch();
@@ -7454,7 +7458,7 @@ var main = async () => {
   else if (await commitAll(`chore(release): ${channel} ${versions.join(", ")}`))
     await push(".", undefined, process5.env.GITHUB_TOKEN);
   setOutput("versions", JSON.stringify(versions));
-  await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release`, dry, [
+  await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release ${versions.join(", ")}`, dry, [
     ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
     ["Deprecated", deprecated]
   ]);
