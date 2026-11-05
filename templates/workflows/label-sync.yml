@@ -15,4 +15,4 @@ permissions:
 jobs:
   label-sync:
     name: Label sync
-    uses: NanoForge-dev/actions/.github/workflows/label-sync.yml@v3
+    uses: nanoforge-dev/actions/.github/workflows/label-sync.yml@v3

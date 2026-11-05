@@ -25,12 +25,12 @@ Every repository holds the same caller workflows (copy them from [`templates/wor
 ```yaml
 jobs:
   release-pr:
-    uses: NanoForge-dev/actions/.github/workflows/release-pr.yml@v3
+    uses: nanoforge-dev/actions/.github/workflows/release-pr.yml@v3
     with:
       version: ${{ inputs.version }}
 ```
 
-A single action can also be used on its own: `uses: NanoForge-dev/actions/release@v3`.
+A single action can also be used on its own: `uses: nanoforge-dev/actions/release@v3`.
 
 - `@v3` follows the latest `3.x.y` release. Pinning a workflow to `@3.0.0` pins only that workflow file: the actions it calls are always `@v3`, so a repo that needs a fixed release must call the actions itself at that tag.
 - Each repository keeps a `./.github/actions/prepare` action. The workflows run it before any release step. It calls [`setup`](#setup) and adds what the repo needs (emsdk, a build, env vars).
@@ -137,7 +137,7 @@ docker:
     - uses: actions/checkout@v7
       with:
         persist-credentials: false
-    - uses: NanoForge-dev/actions/docker-release@v3
+    - uses: nanoforge-dev/actions/docker-release@v3
       with:
         image: ${{ github.repository }}
         version: ${{ needs.release.outputs.version }}

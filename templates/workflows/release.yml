@@ -14,7 +14,7 @@ permissions:
 jobs:
   release:
     name: Release
-    uses: NanoForge-dev/actions/.github/workflows/release.yml@v3
+    uses: nanoforge-dev/actions/.github/workflows/release.yml@v3
     secrets:
       NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
       NANOFORGE_BOT_TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN }}

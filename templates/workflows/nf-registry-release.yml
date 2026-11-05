@@ -22,7 +22,7 @@ permissions:
 jobs:
   nf-publish:
     name: NanoForge registry release
-    uses: NanoForge-dev/actions/.github/workflows/nf-registry-release.yml@v3
+    uses: nanoforge-dev/actions/.github/workflows/nf-registry-release.yml@v3
     with:
       package: ${{ inputs.package }}
       exclude: ${{ inputs.exclude }}

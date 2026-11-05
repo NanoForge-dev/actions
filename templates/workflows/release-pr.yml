@@ -27,7 +27,7 @@ permissions:
 jobs:
   release-pr:
     name: Release PR
-    uses: NanoForge-dev/actions/.github/workflows/release-pr.yml@v3
+    uses: nanoforge-dev/actions/.github/workflows/release-pr.yml@v3
     with:
       group: ${{ inputs.group }}
       packages: ${{ inputs.packages }}

@@ -45,7 +45,7 @@ jobs:
           persist-credentials: false
 
       - name: Export the prepare env
-        uses: NanoForge-dev/actions/export-env@v3
+        uses: nanoforge-dev/actions/export-env@v3
         with:
           env: ${{ inputs.prepare-env }}
 
@@ -62,7 +62,7 @@ jobs:
         run: nf login -k "$NF_REGISTRY_KEY"
 
       - name: Release packages
-        uses: NanoForge-dev/actions/nf-registry-release@v3
+        uses: nanoforge-dev/actions/nf-registry-release@v3
         with:
           package: ${{ inputs.package }}
           exclude: ${{ inputs.exclude }}

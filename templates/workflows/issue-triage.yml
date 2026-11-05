@@ -10,4 +10,4 @@ permissions:
 jobs:
   triage:
     name: Triage
-    uses: NanoForge-dev/actions/.github/workflows/issue-triage.yml@v3
+    uses: nanoforge-dev/actions/.github/workflows/issue-triage.yml@v3

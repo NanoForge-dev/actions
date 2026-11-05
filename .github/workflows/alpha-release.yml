@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
 
       - name: Export the prepare env
-        uses: NanoForge-dev/actions/export-env@v3
+        uses: nanoforge-dev/actions/export-env@v3
         with:
           env: ${{ inputs.prepare-env }}
 
@@ -46,7 +46,7 @@ jobs:
         uses: ./.github/actions/prepare
 
       - name: Release alpha
-        uses: NanoForge-dev/actions/prerelease@v3
+        uses: nanoforge-dev/actions/prerelease@v3
         with:
           channel: alpha
           packages: ${{ inputs.packages }}

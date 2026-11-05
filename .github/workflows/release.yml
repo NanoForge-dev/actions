@@ -83,7 +83,7 @@ jobs:
           fetch-tags: true
 
       - name: Export the prepare env
-        uses: NanoForge-dev/actions/export-env@v3
+        uses: nanoforge-dev/actions/export-env@v3
         with:
           env: ${{ inputs.prepare-env }}
 
@@ -92,7 +92,7 @@ jobs:
 
       - name: Release packages
         id: release
-        uses: NanoForge-dev/actions/release@v3
+        uses: nanoforge-dev/actions/release@v3
         with:
           npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
@@ -111,7 +111,7 @@ jobs:
       - name: Sync docs
         if: steps.release.outputs.docs-version != ''
         continue-on-error: true
-        uses: NanoForge-dev/actions/docs-sync@v3
+        uses: nanoforge-dev/actions/docs-sync@v3
         with:
           version: ${{ steps.release.outputs.docs-version }}
           docs-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
@@ -132,7 +132,7 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Export the prepare env
-        uses: NanoForge-dev/actions/export-env@v3
+        uses: nanoforge-dev/actions/export-env@v3
         with:
           env: ${{ inputs.prepare-env }}
 
@@ -140,7 +140,7 @@ jobs:
         uses: ./.github/actions/prepare
 
       - name: Release beta
-        uses: NanoForge-dev/actions/prerelease@v3
+        uses: nanoforge-dev/actions/prerelease@v3
         with:
           channel: beta
           npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}

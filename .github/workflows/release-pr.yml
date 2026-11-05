@@ -50,7 +50,7 @@ jobs:
           fetch-tags: true
 
       - name: Export the prepare env
-        uses: NanoForge-dev/actions/export-env@v3
+        uses: nanoforge-dev/actions/export-env@v3
         with:
           env: ${{ inputs.prepare-env }}
 
@@ -59,7 +59,7 @@ jobs:
 
       - name: Create release PR
         id: release-pr
-        uses: NanoForge-dev/actions/release-pr@v3
+        uses: nanoforge-dev/actions/release-pr@v3
         with:
           group: ${{ inputs.group }}
           packages: ${{ inputs.packages }}
