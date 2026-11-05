@@ -135,7 +135,7 @@ Callers are in [`templates/workflows`](templates/workflows).
 
 - **Coverage:** the unit job summarizes the lcov reports matching `coverage-files` (default `**/coverage/lcov.info`; empty: none) with [`coverage-report`](#coverage-report) and uploads them as the `coverage` artifact. The unit script must write them.
 - **End-to-end hook:** when the repo has a `./.github/actions/prepare-e2e` action, the e2e job runs it after `prepare` (browsers, services, another repo's build). `playwright: true` caches `~/.cache/ms-playwright`, keyed on the lockfile. When the e2e tests fail, `e2e-report-path` (e.g. Playwright traces) is uploaded as the `e2e-report` artifact.
-- **Caching:** the pnpm store is cached by [`setup`](#setup) and the turbo outputs (`.turbo/cache`) per job when the repo has a `turbo.json`. The audit job only needs Node.js and pnpm: it installs nothing and runs no `prepare`.
+- **Caching:** the pnpm store is cached by [`setup`](#setup) and the turbo outputs (`.turbo/cache`) in the style and e2e jobs when the repo has a `turbo.json`. The unit job runs without the turbo cache: a hit replays the logs without the `coverage/` files, so the report would miss packages. The audit job only needs Node.js and pnpm: it installs nothing and runs no `prepare`.
 - **Reports:** every job writes its result in the job summary.
 
 ### Registry releases
@@ -229,7 +229,7 @@ Output: `versions`.
 
 ### `nf-registry-release-pr`
 
-For each package of `path`, bumps its manifest version when the registry has nothing newer: the bump comes from the conventional commits that touched the package since its tag `{package}@{version}` (else since the last change of its manifest version): breaking is major, `feat` minor, `fix` and `perf` patch. A package with no version and no release gets `1.0.0`. A manifest version already newer than the registry is kept. It then pushes an `nf-releases/<run>` branch and opens the PR. The checkout needs the full history and tags (`fetch-depth: 0`, `fetch-tags: true`).
+For each package of `path`, bumps its manifest version when the registry has nothing newer: the bump comes from the conventional commits that touched the package since its tag `{package}@{version}` (else since the last change of its manifest version): breaking is major, `feat` minor, `fix` and `perf` patch. A package with no version and no release gets `1.0.0`. A manifest version already newer than the registry is kept, unless its tag exists: that version was released then unpublished, and the registry never takes a number twice, so it gets at least a patch bump. Every manifest is checked first (name `@scope/name`, dependencies `@scope/name`, version semver or none), and the run lists every bad one at once. It then pushes an `nf-releases/<run>` branch and opens the PR. The checkout needs the full history and tags (`fetch-depth: 0`, `fetch-tags: true`).
 
 | Input          | Default        | Description                        |
 | -------------- | -------------- | ---------------------------------- |
@@ -241,7 +241,7 @@ Outputs: `pull-request` (empty on a dry run or when nothing changed), `packages`
 
 ### `nf-registry-release`
 
-Publishes NanoForge components and systems (`nanoforge.manifest.json`) to the NanoForge registry with `nf publish`, dependencies first, and only the packages whose manifest version is newer than the registry (the others are listed as not published). Each published package is tagged `{package}@{version}` on the checked-out commit. It needs the `nf` CLI, logged in, and a token that can create tags (`contents: write`).
+Publishes NanoForge components and systems (`nanoforge.manifest.json`) to the NanoForge registry with `nf publish`, dependencies first, and only the packages whose manifest version is newer than the registry (the others are listed as not published), and never a version whose tag `{package}@{version}` already exists. Manifests are checked as in `nf-registry-release-pr`. Releases run one at a time (`concurrency`). Each published package is tagged `{package}@{version}` on the checked-out commit. It needs the `nf` CLI, logged in, and a token that can create tags (`contents: write`).
 
 | Input          | Default        | Description                                                                   |
 | -------------- | -------------- | ----------------------------------------------------------------------------- |

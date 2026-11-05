@@ -6,6 +6,7 @@ import { join } from "path";
 import { isNewerThan, nfRegistryVersions } from "../lib/registry";
 import {
   MANIFEST_FILE_NAME,
+  assertNfPackages,
   listNfPackages,
   setManifestVersion,
 } from "../nf-registry-release/packages";
@@ -105,4 +106,29 @@ test("listNfPackages reads dependencies as a list or as ranges", () => {
     JSON.stringify({ name: "@nf/a", version: "1.0.0", dependencies: { "@nf/b": "^1.0.0" } }),
   );
   expect(listNfPackages(dir)[0]?.dependsOn).toEqual(["@nf/b"]);
+});
+
+test("planNfVersion bumps a tagged version the registry no longer lists (unpublished)", () => {
+  expect(planNfVersion("1.3.0", ["1.2.0"], undefined, true)).toEqual({
+    version: "1.3.1",
+    reason: "version used before",
+    changed: true,
+  });
+  expect(planNfVersion("1.3.0", ["1.2.0"], "minor", true)?.version).toBe("1.4.0");
+  expect(planNfVersion("1.3.0", ["1.3.0"], undefined, true)).toBeUndefined();
+});
+
+test("assertNfPackages lists every manifest the registry would refuse", () => {
+  const pkg = (name: string, version: string, ...dependsOn: string[]) => ({
+    name,
+    version,
+    dependsOn,
+    path: `packages/${name}`,
+  });
+  expect(assertNfPackages([pkg("@nf/a", ""), pkg("@nf/b", "1.0.0", "@nf/a")])).toHaveLength(2);
+  expect(() =>
+    assertNfPackages([pkg("nf/a", ""), pkg("@nf/b", "1.0", "nf/a"), pkg("@nf/c", "1.0.0")]),
+  ).toThrow(
+    'packages/nf/a: name "nf/a" is not @scope/name\npackages/@nf/b: version "1.0" is not semver\npackages/@nf/b: dependency "nf/a" is not @scope/name',
+  );
 });

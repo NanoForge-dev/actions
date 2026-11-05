@@ -19,6 +19,7 @@ import { repoRelative } from "../lib/workspace";
 import {
   MANIFEST_FILE_NAME,
   type NfPackage,
+  assertNfPackages,
   listNfPackages,
   nfTag,
   setManifestVersion,
@@ -29,27 +30,27 @@ import { type NfVersionPlan, planNfVersion } from "./plan";
  * Commits of `pkg` since its last registry release: its tag, else the last commit that changed the manifest
  * version (a release made before the tags), else the whole history.
  */
-const commitsSinceRelease = async (pkg: NfPackage): Promise<string[]> => {
+const commitsSinceRelease = async (pkg: NfPackage, tagged: boolean): Promise<string[]> => {
   const dir = repoRelative(pkg.path);
-  const tag = pkg.version ? nfTag(pkg.name, pkg.version) : undefined;
-  const since =
-    tag && (await tagExists(tag))
-      ? tag
-      : await lastCommitChanging(join(dir, MANIFEST_FILE_NAME), '"version"');
+  const since = tagged
+    ? nfTag(pkg.name, pkg.version)
+    : await lastCommitChanging(join(dir, MANIFEST_FILE_NAME), '"version"');
   return commitMessages(since, [dir]);
 };
 
 const main = async () => {
   const dry = getBoolean("dry-run", false);
-  const pkgs = listNfPackages(getString("path", "packages"));
+  const pkgs = assertNfPackages(listNfPackages(getString("path", "packages")));
 
   const plans: (NfVersionPlan & { pkg: NfPackage })[] = [];
   const unchanged: string[] = [];
   for (const pkg of pkgs) {
+    const tagged = !!pkg.version && (await tagExists(nfTag(pkg.name, pkg.version)));
     const plan = planNfVersion(
       pkg.version,
       await nfRegistryVersions(pkg.name),
-      highestBump(await commitsSinceRelease(pkg)),
+      highestBump(await commitsSinceRelease(pkg, tagged)),
+      tagged,
     );
     if (plan) plans.push({ ...plan, pkg });
     else unchanged.push(`\`${pkg.name}@${pkg.version}\``);

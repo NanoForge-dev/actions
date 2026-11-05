@@ -31,6 +31,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    concurrency:
+      group: nf-registry-release-pr
+      cancel-in-progress: false
     outputs:
       pull-request: ${{ steps.release-pr.outputs.pull-request }}
       packages: ${{ steps.release-pr.outputs.packages }}

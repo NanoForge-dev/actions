@@ -1,7 +1,7 @@
 import { endGroup, info, setFailed, setOutput, startGroup } from "@actions/core";
 import { $ } from "bun";
 
-import { headSha } from "../lib/git";
+import { headSha, tagExists } from "../lib/git";
 import { createTag } from "../lib/github";
 import { getBoolean, getList, getString } from "../lib/inputs";
 import {
@@ -13,14 +13,27 @@ import {
 } from "../lib/registry";
 import { sortReleaseTree } from "../lib/release-tree";
 import { writeSummary } from "../lib/summary";
-import { type NfPackage, listNfPackages, nfTag, selectNfPackages } from "./packages";
+import {
+  type NfPackage,
+  assertNfPackages,
+  listNfPackages,
+  nfTag,
+  selectNfPackages,
+} from "./packages";
 
-/** Only versions above everything on the registry are published: the others were released already. */
+/**
+ * Only versions above everything on the registry, and never tagged, are published: the others were released
+ * already (a tagged version missing from the registry was unpublished, and its number can't be reused).
+ */
 const splitNewer = async (pkgs: NfPackage[]) => {
   const newer: NfPackage[] = [];
   const skipped: string[] = [];
   for (const pkg of pkgs) {
     if (!pkg.version) skipped.push(`\`${pkg.name}\` (no version in its manifest)`);
+    else if (await tagExists(nfTag(pkg.name, pkg.version)))
+      skipped.push(
+        `\`${pkg.name}@${pkg.version}\` (released before, tag \`${nfTag(pkg.name, pkg.version)}\`)`,
+      );
     else if (!isNewerThan(pkg.version, await nfRegistryVersions(pkg.name)))
       skipped.push(`\`${pkg.name}@${pkg.version}\` (already on the registry)`);
     else newer.push(pkg);
@@ -31,7 +44,7 @@ const splitNewer = async (pkgs: NfPackage[]) => {
 const main = async () => {
   const dry = getBoolean("dry-run", false);
   const selected = selectNfPackages(
-    listNfPackages(getString("path", "packages")),
+    assertNfPackages(listNfPackages(getString("path", "packages"))),
     getString("package"),
     getList("exclude"),
   );

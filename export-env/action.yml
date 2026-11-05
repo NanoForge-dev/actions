@@ -26,4 +26,8 @@ runs:
           keys+=("$key")
         done <<< "$EXPORT_ENV"
         # Keys only: the values are public build vars, but a report doesn't need them.
-        { printf '# Exported env\n\n## Keys\n\n'; printf -- '- %s\n' "${keys[@]}"; printf '\n'; } >> "$GITHUB_STEP_SUMMARY"
+        {
+          printf '# Exported env\n\n## Keys\n\n'
+          if [ "${#keys[@]}" -eq 0 ]; then printf '_None_\n'; else printf -- '- %s\n' "${keys[@]}"; fi
+          printf '\n'
+        } >> "$GITHUB_STEP_SUMMARY"

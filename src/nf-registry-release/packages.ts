@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "path";
+import semver from "semver";
 
 import { type TreeNode, withDependencies } from "../lib/release-tree";
 
@@ -84,3 +85,24 @@ export const selectNfPackages = (all: NfPackage[], pkg: string, exclude: string[
 
 /** Git tag of a registry release, which the next release PR counts the commits from. */
 export const nfTag = (name: string, version: string): string => `${name}@${version}`;
+
+/** The registry's package names (api registry.const.ts): @scope/name, lowercase letters, digits and -. */
+const NF_NAME = /^@[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * Checks every manifest against the registry rules before any request, publish or tag, and lists every bad one
+ * at once. A manifest may have no version yet: the release PR gives it one.
+ */
+export const assertNfPackages = (pkgs: NfPackage[]): NfPackage[] => {
+  const bad = pkgs.flatMap((pkg) => [
+    ...(NF_NAME.test(pkg.name) ? [] : [`${pkg.path}: name "${pkg.name}" is not @scope/name`]),
+    ...(!pkg.version || semver.valid(pkg.version) === pkg.version
+      ? []
+      : [`${pkg.path}: version "${pkg.version}" is not semver`]),
+    ...pkg.dependsOn
+      .filter((dep) => !NF_NAME.test(dep))
+      .map((dep) => `${pkg.path}: dependency "${dep}" is not @scope/name`),
+  ]);
+  if (bad.length) throw new Error(`Invalid ${MANIFEST_FILE_NAME}:\n${bad.join("\n")}`);
+  return pkgs;
+};

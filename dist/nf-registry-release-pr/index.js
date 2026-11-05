@@ -7249,6 +7249,7 @@ var setVersion = async (pkgPath, version) => {
 };
 
 // src/nf-registry-release/packages.ts
+var import_semver3 = __toESM(require_semver2(), 1);
 import { readFileSync as readFileSync2, readdirSync, writeFileSync } from "fs";
 import { join as join2 } from "path";
 
@@ -7321,36 +7322,51 @@ var selectNfPackages = (all, pkg, exclude) => {
   return withDependencies(all, all.filter((candidate) => !exclude.includes(candidate.name)).map((candidate) => candidate.name));
 };
 var nfTag = (name, version) => `${name}@${version}`;
+var NF_NAME = /^@[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
+var assertNfPackages = (pkgs) => {
+  const bad = pkgs.flatMap((pkg) => [
+    ...NF_NAME.test(pkg.name) ? [] : [`${pkg.path}: name "${pkg.name}" is not @scope/name`],
+    ...!pkg.version || import_semver3.default.valid(pkg.version) === pkg.version ? [] : [`${pkg.path}: version "${pkg.version}" is not semver`],
+    ...pkg.dependsOn.filter((dep) => !NF_NAME.test(dep)).map((dep) => `${pkg.path}: dependency "${dep}" is not @scope/name`)
+  ]);
+  if (bad.length)
+    throw new Error(`Invalid ${MANIFEST_FILE_NAME}:
+${bad.join(`
+`)}`);
+  return pkgs;
+};
 
 // src/nf-registry-release-pr/plan.ts
 var FIRST_VERSION = "1.0.0";
-var planNfVersion = (manifest, published, bump) => {
+var planNfVersion = (manifest, published, bump, tagged = false) => {
   if (!manifest && !published.length)
     return { version: FIRST_VERSION, reason: "first release", changed: true };
-  if (manifest && isNewerThan(manifest, published))
+  if (manifest && !tagged && isNewerThan(manifest, published))
     return { version: manifest, reason: "not on the registry yet", changed: false };
   const base = highestVersion([manifest, ...published].filter(Boolean));
   if (bump)
     return { version: bumpVersion(base, bump), reason: `${bump} bump`, changed: true };
   if (!manifest)
     return { version: base, reason: "version from the registry", changed: true };
+  if (!published.includes(manifest))
+    return { version: bumpVersion(base, "patch"), reason: "version used before", changed: true };
   return;
 };
 
 // src/nf-registry-release-pr/index.ts
-var commitsSinceRelease = async (pkg) => {
+var commitsSinceRelease = async (pkg, tagged) => {
   const dir = repoRelative(pkg.path);
-  const tag = pkg.version ? nfTag(pkg.name, pkg.version) : undefined;
-  const since = tag && await tagExists(tag) ? tag : await lastCommitChanging(join3(dir, MANIFEST_FILE_NAME), '"version"');
+  const since = tagged ? nfTag(pkg.name, pkg.version) : await lastCommitChanging(join3(dir, MANIFEST_FILE_NAME), '"version"');
   return commitMessages(since, [dir]);
 };
 var main = async () => {
   const dry = getBoolean("dry-run", false);
-  const pkgs = listNfPackages(getString("path", "packages"));
+  const pkgs = assertNfPackages(listNfPackages(getString("path", "packages")));
   const plans = [];
   const unchanged = [];
   for (const pkg of pkgs) {
-    const plan = planNfVersion(pkg.version, await nfRegistryVersions(pkg.name), highestBump(await commitsSinceRelease(pkg)));
+    const tagged = !!pkg.version && await tagExists(nfTag(pkg.name, pkg.version));
+    const plan = planNfVersion(pkg.version, await nfRegistryVersions(pkg.name), highestBump(await commitsSinceRelease(pkg, tagged)), tagged);
     if (plan)
       plans.push({ ...plan, pkg });
     else

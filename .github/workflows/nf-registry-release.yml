@@ -43,10 +43,15 @@ jobs:
   nf-publish:
     name: Publish to the NanoForge registry
     runs-on: ubuntu-latest
-    # A pull_request caller only publishes a merged registry release PR.
+    # An allowlist of callers: a dispatch, or a merged registry release PR (never pull_request_target).
     if: >-
-      github.repository_owner == 'NanoForge-dev' && (github.event_name != 'pull_request' ||
-      (github.event.pull_request.merged == true && startsWith(github.head_ref, 'nf-releases/')))
+      github.repository_owner == 'NanoForge-dev' && (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true &&
+      startsWith(github.head_ref, 'nf-releases/')))
+    # Two releases at once would race for the same versions (409).
+    concurrency:
+      group: nf-registry-release
+      cancel-in-progress: false
     permissions:
       contents: write
     outputs:
@@ -58,6 +63,8 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          # A version whose {package}@{version} tag exists was released before.
+          fetch-tags: true
 
       - name: Export the prepare env
         uses: nanoforge-dev/actions/export-env@v3

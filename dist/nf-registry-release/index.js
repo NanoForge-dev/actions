@@ -7186,6 +7186,7 @@ ${lines.map((line) => `- ${line}`).join(`
 };
 
 // src/nf-registry-release/packages.ts
+var import_semver2 = __toESM(require_semver2(), 1);
 import { readFileSync as readFileSync2, readdirSync, writeFileSync } from "fs";
 import { join } from "path";
 var MANIFEST_FILE_NAME = "nanoforge.manifest.json";
@@ -7224,6 +7225,19 @@ var selectNfPackages = (all, pkg, exclude) => {
   return withDependencies(all, all.filter((candidate) => !exclude.includes(candidate.name)).map((candidate) => candidate.name));
 };
 var nfTag = (name, version) => `${name}@${version}`;
+var NF_NAME = /^@[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
+var assertNfPackages = (pkgs) => {
+  const bad = pkgs.flatMap((pkg) => [
+    ...NF_NAME.test(pkg.name) ? [] : [`${pkg.path}: name "${pkg.name}" is not @scope/name`],
+    ...!pkg.version || import_semver2.default.valid(pkg.version) === pkg.version ? [] : [`${pkg.path}: version "${pkg.version}" is not semver`],
+    ...pkg.dependsOn.filter((dep) => !NF_NAME.test(dep)).map((dep) => `${pkg.path}: dependency "${dep}" is not @scope/name`)
+  ]);
+  if (bad.length)
+    throw new Error(`Invalid ${MANIFEST_FILE_NAME}:
+${bad.join(`
+`)}`);
+  return pkgs;
+};
 
 // src/nf-registry-release/index.ts
 var splitNewer = async (pkgs) => {
@@ -7232,6 +7246,8 @@ var splitNewer = async (pkgs) => {
   for (const pkg of pkgs) {
     if (!pkg.version)
       skipped.push(`\`${pkg.name}\` (no version in its manifest)`);
+    else if (await tagExists(nfTag(pkg.name, pkg.version)))
+      skipped.push(`\`${pkg.name}@${pkg.version}\` (released before, tag \`${nfTag(pkg.name, pkg.version)}\`)`);
     else if (!isNewerThan(pkg.version, await nfRegistryVersions(pkg.name)))
       skipped.push(`\`${pkg.name}@${pkg.version}\` (already on the registry)`);
     else
@@ -7241,7 +7257,7 @@ var splitNewer = async (pkgs) => {
 };
 var main = async () => {
   const dry = getBoolean("dry-run", false);
-  const selected = selectNfPackages(listNfPackages(getString("path", "packages")), getString("package"), getList("exclude"));
+  const selected = selectNfPackages(assertNfPackages(listNfPackages(getString("path", "packages"))), getString("package"), getList("exclude"));
   const { newer, skipped } = await splitNewer(selected);
   const tree = sortReleaseTree(newer);
   const sha = await headSha();

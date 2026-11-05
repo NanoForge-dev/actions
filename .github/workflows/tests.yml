@@ -65,7 +65,7 @@ jobs:
       - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      # Restore-only on main's entries is not needed here: test jobs hold no token, a PR only reads main's cache.
+      # Test jobs hold no token, so a PR may restore main's entries and write its own.
       - name: Cache the turbo outputs
         if: hashFiles('turbo.json') != ''
         uses: actions/cache@v6
@@ -108,14 +108,8 @@ jobs:
       - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Cache the turbo outputs
-        if: hashFiles('turbo.json') != ''
-        uses: actions/cache@v6
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-unit-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-unit-
-
+      # No turbo cache here: a cache hit replays the logs without the coverage/ files (test:unit outputs are []),
+      # so the coverage report would only count the packages whose tests ran.
       - name: Run the unit tests
         id: run
         env:
