@@ -31,7 +31,7 @@ export const planNfVersion = (
   if (bump) return { version: bumpVersion(base, bump), reason: `${bump} bump`, changed: true };
   if (!manifest) return { version: base, reason: "version from the registry", changed: true };
   // Tagged but gone from the registry: it was unpublished, and the registry never takes a number twice (409).
-  if (!published.includes(manifest))
+  if (tagged && !published.includes(manifest))
     return { version: bumpVersion(base, "patch"), reason: "version used before", changed: true };
   return undefined;
 };

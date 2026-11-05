@@ -48,9 +48,10 @@ jobs:
       github.repository_owner == 'NanoForge-dev' && (github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true &&
       startsWith(github.head_ref, 'nf-releases/')))
-    # Two releases at once would race for the same versions (409).
+    # Two releases at once would race for the same versions (409). Dry runs get their own group, so one never
+    # replaces a pending real release (a group keeps one pending run).
     concurrency:
-      group: nf-registry-release
+      group: nf-registry-release${{ inputs.dry-run && '-dry-run' || '' }}
       cancel-in-progress: false
     permissions:
       contents: write
@@ -63,7 +64,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          # A version whose {package}@{version} tag exists was released before.
+          # A version whose {package}@{version} tag exists was released before: the tags sit on older commits,
+          # which a shallow checkout leaves out with them.
+          fetch-depth: 0
           fetch-tags: true
 
       - name: Export the prepare env

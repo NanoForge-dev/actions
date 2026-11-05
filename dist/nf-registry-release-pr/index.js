@@ -7348,7 +7348,7 @@ var planNfVersion = (manifest, published, bump, tagged = false) => {
     return { version: bumpVersion(base, bump), reason: `${bump} bump`, changed: true };
   if (!manifest)
     return { version: base, reason: "version from the registry", changed: true };
-  if (!published.includes(manifest))
+  if (tagged && !published.includes(manifest))
     return { version: bumpVersion(base, "patch"), reason: "version used before", changed: true };
   return;
 };

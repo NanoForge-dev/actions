@@ -3,6 +3,7 @@ name: Release
 run-name: >-
   ${{ !github.event.pull_request.merged && format('Closed without merge: {0}', github.event.pull_request.title)
   || startsWith(github.head_ref, 'releases/') && format('Release: {0}', github.event.pull_request.title)
+  || startsWith(github.head_ref, 'nf-releases/') && format('No npm release: {0}', github.event.pull_request.title)
   || format('Beta release of {0}', github.event.pull_request.merge_commit_sha) }}
 
 on:

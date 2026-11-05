@@ -116,6 +116,8 @@ test("planNfVersion bumps a tagged version the registry no longer lists (unpubli
   });
   expect(planNfVersion("1.3.0", ["1.2.0"], "minor", true)?.version).toBe("1.4.0");
   expect(planNfVersion("1.3.0", ["1.3.0"], undefined, true)).toBeUndefined();
+  // Behind the registry with no tag (published from elsewhere): nothing to release without commits.
+  expect(planNfVersion("1.0.0", ["1.1.0"], undefined)).toBeUndefined();
 });
 
 test("assertNfPackages lists every manifest the registry would refuse", () => {
