@@ -128,12 +128,13 @@ Callers are in [`templates/workflows`](templates/workflows).
 
 `tests.yml` runs one job per check, so a failure points at the right one:
 
-| Job                       | Runs                                                                                                                            |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `Coding style (<script>)` | `pnpm run <script>`, one matrix leg per entry of `style-scripts` (default `["lint"]`, `[]`: none)                               |
-| `Unit tests`              | `pnpm run <unit-script>` (default `test:unit`, empty: no job), then the coverage report                                         |
-| `End-to-end tests`        | `pnpm run <e2e-script>` (empty by default: no job)                                                                              |
-| `Dependency audit`        | `pnpm audit` on the lockfile, failing from `audit-level` (default `high`; `low`, `moderate`, `high`, `critical`; empty: no job) |
+| Job                       | Runs                                                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Coding style (<script>)` | `pnpm run <script>`, one matrix leg per entry of `style-scripts` (default `["lint"]`, `[]`: none)                                                          |
+| `Unit tests`              | `pnpm run <unit-script>` (default `test:unit`, empty: no job), then the coverage report                                                                    |
+| `End-to-end tests`        | `pnpm run <e2e-script>` (empty by default: no job)                                                                                                         |
+| `Docs check`              | [`docs-sync`](#docs-sync) with `check: true` when the repo has `docs/docs/navigation.json` or `docs/guides/navigation.json` (else the job only checks out) |
+| `Dependency audit`        | `pnpm audit` on the lockfile, failing from `audit-level` (default `high`; `low`, `moderate`, `high`, `critical`; empty: no job)                            |
 
 - **Coverage:** the unit job summarizes the lcov reports matching `coverage-files` (default `**/coverage/lcov.info`; empty: none) with [`coverage-report`](#coverage-report) and uploads them as the `coverage` artifact. The unit script must write them.
 - **End-to-end hook:** when the repo has a `./.github/actions/prepare-e2e` action, the e2e job runs it after `prepare` (browsers, services, another repo's build). `playwright: true` caches `~/.cache/ms-playwright`, keyed on the lockfile. When the e2e tests fail, `e2e-report-path` (e.g. Playwright traces) is uploaded as the `e2e-report` artifact.
@@ -309,22 +310,70 @@ Output: `lines` (line coverage of all the reports, e.g. `84.47%`).
 
 ### `docs-sync`
 
-Copies `docs/docs/` and `docs/guides/` of the source repository (and the API references when enabled) into `docs/<category>/` and `guides/<category>/` of the checked-out docs repository, regenerates its `docs.json` navigation, then commits and pushes.
+Validates the docs of the source repository, then replaces its own folders of the checked-out docs repository with them (and the API references when enabled), commits and pushes. It never writes the docs repository's `docs.json`: that file is written by hand and `$ref`s the `navigation.json` files below (`{ "pages": { "$ref": "./docs/engine/navigation.json" } }`).
+
+**Source layout** (in `src-path`):
+
+```
+docs/docs/                   Documentation tab: .mdx/.md pages and their assets
+docs/docs/navigation.json    required when docs/docs exists
+docs/guides/                 optional, Guides tab
+docs/guides/navigation.json  required when docs/guides exists
+```
+
+`navigation.json` is a JSON array of Mintlify navigation items, page paths relative to its folder and without extension:
+
+```json
+[
+  { "group": "Getting started", "icon": "rocket", "pages": ["getting-started/introduction"] },
+  {
+    "group": "Commands",
+    "pages": ["commands/overview", { "group": "Reference", "pages": ["commands/new"] }]
+  }
+]
+```
+
+An item is a page path or a group `{ "group", "pages", "icon"?, "expanded"?, "root"?, "tag"? }`; only `pages` and `root` are rewritten, the other keys pass through. The sync fails, listing every problem, when:
+
+- a path is absolute, has an extension, contains `..` or `./`, or points into a dot-folder;
+- a listed page has no `.mdx` or `.md` file, a page is listed more than once (a group `root` counts), or a `.md`/`.mdx` file is not listed (Mintlify would publish it as a hidden page);
+- a folder holds a `README.md`, both `x.md` and `x.mdx`, or a symlink, or a page has no frontmatter `title`;
+- a relative link or image doesn't resolve to a page or file of the same folder.
+
+Dot-folders (e.g. a `.tsdocs` cache) are never copied. Relative links and images (`[x](../install)`, `![x](./img.png)`, `href="..."`, `src="..."`; `.md`/`.mdx` extensions allowed) are rewritten to absolute site paths (`/docs/engine/install`), keeping `#anchor` and `?query`. Absolute paths, anchors, `http(s):`, `mailto:` and other schemes are left alone, and so are fenced code blocks and inline code.
+
+**Target layout** (in `docs-path`), each folder owned by one source repo:
+
+```
+docs/<category>/                       copy of docs/docs (deleted, then recreated)
+docs/<category>/navigation.json        its navigation, paths prefixed: "docs/<category>/getting-started/introduction"
+guides/<category>/                     same for docs/guides (deleted when the source has none)
+guides/<category>/navigation.json
+references/<category>/<version>/       the references of this release, navigation.json prefixed "references/<category>/<version>/..."
+references/<category>/navigation.json  Mintlify versions, newest first: [{ "version": "2.1.0", "default": true, "pages": [...] }, { "version": "1.4.2", "pages": [...] }]
+```
+
+**References** (`references: true`): `pnpm run docs` runs in `src-path` and must write `references-path` (pages with a frontmatter `title`, and a `navigation.json` relative to it), which is validated like the docs. It replaces `references/<category>/<version>/`; then only the highest version of each major is kept, and every other entry of `references/<category>/` is deleted (an older version, a placeholder page). Nothing is written before the docs, guides and references are all valid.
+
+**Check mode** (`check: true`): validates `docs/docs` and `docs/guides` (navigation and links) and stops. It needs no docs repository and no config, generates no references and commits nothing. The [`tests.yml`](#tests) workflow runs it in its `Docs check` job.
+
+**Push:** a separate step that alone gets the token. It pushes from a fresh repository with no system or global git config, the token in a per-command header, masked. When another repo pushed its docs in between, it fetches the remote branch, rebases the docs commit on it and retries, up to 3 attempts (repos write disjoint folders, so a conflict fails the step).
 
 The config is only read when `category` is empty: with a `category` input, `references` and `references-path` default to `false` and `docs/references`.
 
-| Input             | Default               | Description                                                                                                    |
-| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `repository`      | this repo's name      | Commit message scope                                                                                           |
-| `category`        | `docs.category`       | Docs category (`engine`, `cli`, `editor`...)                                                                   |
-| `src-path`        | `.`                   | Source repository                                                                                              |
-| `docs-path`       | `docs-dist`           | Checked-out docs repository                                                                                    |
-| `references`      | `docs.references`     | Generate the references with `pnpm run docs`                                                                   |
-| `references-path` | `docs.referencesPath` | References directory                                                                                           |
-| `version`         |                       | Released version: the references folder (required with references)                                             |
-| `docs-token`      |                       | Token that pushes to the docs repository. Empty: its checkout's credentials (then readable by the docs script) |
-| `docs-repository` | `NanoForge-dev/docs`  | Repository the token pushes to (never the checkout's remote, which the docs script could change)               |
-| `config`          |                       |                                                                                                                |
+| Input             | Default                  | Description                                                                                                    |
+| ----------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `repository`      | this repo's name         | Commit message scope                                                                                           |
+| `category`        | `docs.category`          | Docs category (`engine`, `cli`, `loader`, `editor`...): `a-z`, `0-9` and `-` only                              |
+| `src-path`        | `.`                      | Source repository                                                                                              |
+| `docs-path`       | `docs-dist`              | Checked-out docs repository                                                                                    |
+| `references`      | `docs.references`        | Generate the references with `pnpm run docs`                                                                   |
+| `references-path` | `docs.referencesPath`    | References directory, from `src-path`                                                                          |
+| `version`         |                          | Released version (`x.y.z`): the references folder (required with references)                                   |
+| `docs-token`      |                          | Token that pushes to the docs repository. Empty: its checkout's credentials (then readable by the docs script) |
+| `docs-repository` | `NanoForge-dev/docs`     | Repository the token pushes to (never the checkout's remote, which the docs script could change)               |
+| `config`          | `.github/nanoforge.json` | Release config, from the repository root                                                                       |
+| `check`           | `false`                  | `true`: only validate the source docs (see check mode)                                                         |
 
 ### `export-env`
 

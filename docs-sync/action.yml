@@ -1,5 +1,5 @@
 name: "NanoForge docs sync"
-description: "Copies a repository's docs (and API references) into the docs repository, regenerates its navigation and pushes it"
+description: "Validates a repository's docs and their navigation, copies them (and the API references) into its folders of the docs repository and pushes them"
 inputs:
   repository:
     description: "Name used in the commit message. Empty: this repository's name"
@@ -31,6 +31,9 @@ inputs:
   config:
     description: "Path of the release config, from the repository root"
     default: ".github/nanoforge.json"
+  check:
+    description: "true: only validate the source docs (navigation and links), for pull requests. No docs repository, no references, no commit"
+    default: "false"
 runs:
   using: composite
   steps:
@@ -51,9 +54,10 @@ runs:
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_CHECK: ${{ inputs.check }}
     # Separate step: the token is not in the env of the step that runs the repo's docs script.
     - name: Push the docs
-      if: steps.run.outputs.changed == 'true'
+      if: inputs.check != 'true' && steps.run.outputs.changed == 'true'
       shell: bash
       env:
         DOCS_PATH: ${{ inputs.docs-path }}
