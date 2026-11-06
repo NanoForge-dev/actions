@@ -20,6 +20,13 @@ on:
       NPM_PUBLISH_TOKEN:
         description: npm token (publishing)
         required: false
+    outputs:
+      version:
+        description: Alpha version when one package was released (e.g. a Docker image tag), else empty
+        value: ${{ jobs.alpha.outputs.version }}
+      versions:
+        description: JSON list of the published name@version
+        value: ${{ jobs.alpha.outputs.versions }}
 
 permissions: {}
 
@@ -31,6 +38,9 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    outputs:
+      version: ${{ steps.alpha.outputs.version }}
+      versions: ${{ steps.alpha.outputs.versions }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -46,6 +56,7 @@ jobs:
         uses: ./.github/actions/prepare
 
       - name: Publish the alpha on npm
+        id: alpha
         uses: nanoforge-dev/actions/prerelease@v3
         with:
           channel: alpha

@@ -112,7 +112,7 @@ Callers are in [`templates/workflows`](templates/workflows).
 | ---------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | `release-pr.yml`             | `workflow_dispatch`                                   | `group`, `packages`, `version`, `dry-run`, `prepare-env`                                                                      | `pull-request`                                   |
 | `release.yml`                | `pull_request: closed` on `main`                      | `prepare-env`                                                                                                                 | `released`, `version`, `tag`, `tags`, `packages` |
-| `alpha-release.yml`          | `workflow_dispatch` (not on the default branch)       | `packages`, `dry-run`, `prepare-env`                                                                                          |                                                  |
+| `alpha-release.yml`          | `workflow_dispatch` (not on the default branch)       | `packages`, `dry-run`, `prepare-env`                                                                                          | `version`, `versions`                            |
 | `nf-registry-release-pr.yml` | `workflow_dispatch`                                   | `path`, `dry-run`                                                                                                             | `pull-request`, `packages`                       |
 | `nf-registry-release.yml`    | `pull_request: closed` on `main`, `workflow_dispatch` | `package`, `exclude`, `path`, `dry-run`, `prepare-env`                                                                        | `released`, `packages`                           |
 | `tests.yml`                  | `pull_request`, `push` on `main`, `workflow_dispatch` | `style-scripts`, `unit-script`, `coverage-files`, `e2e-script`, `e2e-report-path`, `playwright`, `audit-level`, `prepare-env` |                                                  |
@@ -176,6 +176,29 @@ docker:
         cloud-iac-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
 ```
 
+### Alpha images
+
+An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<branch>.<n>`): add a job after the reusable one in the caller's `alpha-release.yml`, and give the caller `packages: write`. It never gets `latest` (a pre-release), and it doesn't set `values-file`: the cloud-iac values are what production deploys. The package must be published by the alpha (not private, its group with `npm: true`), else `version` is empty and the job is skipped.
+
+```yaml
+docker:
+  name: Push alpha image
+  runs-on: ubuntu-latest
+  needs: [alpha]
+  if: needs.alpha.outputs.version != '' && !inputs.dry-run
+  permissions:
+    contents: read
+    packages: write
+  steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: nanoforge-dev/actions/docker-release@v3
+      with:
+        image: ${{ github.repository }}
+        version: ${{ needs.alpha.outputs.version }}
+```
+
 ## Actions
 
 Every action that takes `config` reads `.github/nanoforge.json` when it is empty. `dry-run: true` logs what would happen and doesn't push, publish or tag.
@@ -225,7 +248,7 @@ Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm
 | `packages`                                       |         | Empty: the only package of the config (alpha) or the `betaOnMerge` groups (beta) |
 | `npm-token`, `config`, `dry-run`, `github-token` |         |                                                                                  |
 
-Output: `versions`.
+Outputs: `versions` (JSON `name@version` list), `version` (the plain version when one package was published, else empty).
 
 ### `nf-registry-release-pr`
 

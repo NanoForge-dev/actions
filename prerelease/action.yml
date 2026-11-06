@@ -21,8 +21,11 @@ inputs:
     default: "${{ github.token }}"
 outputs:
   versions:
-    description: "JSON list of the published versions"
+    description: "JSON list of the published versions (name@version)"
     value: ${{ steps.run.outputs.versions }}
+  version:
+    description: "Published version when one package was released, e.g. 1.2.1-alpha.my-branch.0 (else empty)"
+    value: ${{ steps.run.outputs.version }}
 runs:
   using: composite
   steps:

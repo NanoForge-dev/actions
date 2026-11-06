@@ -116,6 +116,8 @@ const main = async () => {
     await push(".", undefined, process.env.GITHUB_TOKEN);
 
   setOutput("versions", JSON.stringify(versions));
+  // A plain version for one package, e.g. the Docker image tag of an alpha.
+  setOutput("version", ordered.length === 1 ? (ordered[0]?.newVersion ?? "") : "");
   await writeSummary(
     `${channel === "alpha" ? "Alpha" : "Beta"} release ${versions.join(", ")}`,
     dry,

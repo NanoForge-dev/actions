@@ -7458,6 +7458,7 @@ var main = async () => {
   else if (await commitAll(`chore(release): ${channel} ${versions.join(", ")}`))
     await push(".", undefined, process5.env.GITHUB_TOKEN);
   setOutput("versions", JSON.stringify(versions));
+  setOutput("version", ordered.length === 1 ? ordered[0]?.newVersion ?? "" : "");
   await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release ${versions.join(", ")}`, dry, [
     ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
     ["Deprecated", deprecated]
