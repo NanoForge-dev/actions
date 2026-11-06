@@ -21,7 +21,7 @@ const planParts = (srcPath: string, category: string) =>
   PARTS.map((part) => {
     const src = join(srcPath, "docs", part);
     const result = existsSync(src)
-      ? planFolder(src, `${part}/${category}`)
+      ? planFolder(src, `${part}/${category}`, srcPath)
       : { problems: part === "docs" ? ["missing: every synced repo has docs/docs"] : [] };
     return { part, src, ...result };
   });
@@ -68,7 +68,11 @@ const main = async () => {
     if (!isVersion(version))
       throw new Error(`Invalid version "${version}": expected x.y.z (semver)`);
     await generateReferences(srcPath);
-    referencesPlan = planFolder(join(srcPath, referencesPath), `references/${category}/${version}`);
+    referencesPlan = planFolder(
+      join(srcPath, referencesPath),
+      `references/${category}/${version}`,
+      srcPath,
+    );
   }
   // Nothing is written before everything is valid, so a broken nav never wipes the published docs.
   assertNoProblems([

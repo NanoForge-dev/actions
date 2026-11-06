@@ -182,6 +182,15 @@ describe("planFolder", () => {
       problems: [".: symlinks are not synced"],
     });
 
+    // A symlinked parent between the checkout and the folder, and a folder outside the checkout.
+    symlinkSync(outside, join(root, "parent"));
+    expect(planFolder(join(root, "parent"), "docs/x", root).problems).toEqual([
+      ".: symlinks are not synced",
+    ]);
+    expect(planFolder(outside, "docs/x", root).problems).toEqual([
+      ".: outside the source repository",
+    ]);
+
     const src = mkdtempSync(join(tmpdir(), "docs-sync-"));
     tree(src, { "a.mdx": "---\ntitle: A\n---\n" });
     symlinkSync(join(outside, "creds.txt"), join(src, "navigation.json"));

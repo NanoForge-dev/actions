@@ -4,10 +4,11 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "fs";
-import { dirname, join } from "path";
+import { dirname, isAbsolute, join, relative, resolve } from "path";
 
 import { rewriteLinks } from "./links";
 import { type NavItem, PAGE_FILE, prefixNavigation, validateNavigation } from "./navigation";
@@ -46,8 +47,15 @@ const hasTitle = (content: string): boolean => {
 export const planFolder = (
   src: string,
   prefix: string,
+  /** Checkout `src` must stay in, with no symlink on the way (a symlinked `docs/` would publish its target) */
+  root = src,
 ): { plan?: FolderPlan; problems: string[] } => {
   const problems: string[] = [];
+  const inside = relative(root, src);
+  if (inside === ".." || inside.startsWith("../") || isAbsolute(inside))
+    return { problems: [".: outside the source repository"] };
+  if (realpathSync(src) !== resolve(realpathSync(root), inside))
+    return { problems: [".: symlinks are not synced"] };
   // readdirSync follows a symlinked root, and readFileSync a symlinked navigation.json: refuse both.
   if (lstatSync(src).isSymbolicLink()) return { problems: [".: symlinks are not synced"] };
   const files = listFiles(src, problems).filter((path) => path !== "navigation.json");
