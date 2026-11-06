@@ -45,6 +45,14 @@ export const headSha = async (): Promise<string> => (await $`git rev-parse HEAD`
 export const tagExists = async (tag: string): Promise<boolean> =>
   (await $`git rev-parse --verify --quiet ${`refs/tags/${tag}`}`.nothrow().quiet()).exitCode === 0;
 
+/** Throws unless `ref` names a commit (a bad ref would read as "no file there"). */
+export const assertCommit = async (ref: string): Promise<void> => {
+  const result = await $`git rev-parse --verify --quiet --end-of-options ${`${ref}^{commit}`}`
+    .nothrow()
+    .quiet();
+  if (result.exitCode !== 0) throw new Error(`"${ref}" is not a commit of this checkout`);
+};
+
 /** Content of `path` at `ref`, or undefined when it doesn't exist there. */
 export const showFile = async (ref: string, path: string): Promise<string | undefined> => {
   const result = await $`git show --end-of-options ${`${ref}:${path}`}`.nothrow().quiet();

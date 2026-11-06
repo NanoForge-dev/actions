@@ -6,7 +6,7 @@ import semver from "semver";
 import { readPackageChangelog, readRootChangelog } from "../lib/changelog";
 import { type ReleaseGroup, groupOf, loadConfig } from "../lib/config";
 import { formatString } from "../lib/format";
-import { headSha, showFile } from "../lib/git";
+import { assertCommit, headSha, showFile } from "../lib/git";
 import { createRelease, createTag, moveTag } from "../lib/github";
 import { getBoolean, getString } from "../lib/inputs";
 import { isOnNpm, waitUntil } from "../lib/registry";
@@ -33,6 +33,7 @@ const findReleased = async (
 ): Promise<Released[]> => {
   const released: Released[] = [];
   const base = getString("base", "HEAD^1");
+  await assertCommit(base);
   for (const pkg of workspace) {
     const group = groups(pkg.name);
     if (!group) continue;

@@ -19,7 +19,8 @@ jobs:
     if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
     permissions:
       contents: write
-    # On the job, so closed PRs that skip it can't cancel a queued release.
+    # On the job, so closed PRs that skip it can't cancel a queued release. GitHub keeps one pending run per
+    # group: a third release merged meanwhile cancels the second, which then needs a manual re-run.
     concurrency:
       group: self-release
       cancel-in-progress: false
@@ -35,8 +36,10 @@ jobs:
         uses: ./.github/actions/prepare
 
       # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match.
-      # A release PR always carries a plain X.Y.Z version (no pre-release on this repo).
+      # A release PR always carries a plain X.Y.Z version (no pre-release on this repo). Every git lookup below
+      # fails the step when it errors (shell: bash runs with pipefail): a guard never skips itself.
       - name: Commit dist/ and push it to the release branch
+        shell: bash
         env:
           TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}
         run: |
@@ -44,18 +47,38 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::package.json version \"$version\" is not X.Y.Z"; exit 1; }
           branch="release/v${version%%.*}"
           date=$(git log -1 --format=%cI)
-          # Never move the branch back (a re-run of an older release), nor away from a version tag already set.
-          if git fetch --quiet --depth=1 origin "refs/heads/$branch" 2>/dev/null; then
-            current=$(git show FETCH_HEAD:package.json | jq -r .version)
-            newest=$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)
-            [ "$newest" = "$version" ] || { echo "::error::$branch already holds $current, newer than $version"; exit 1; }
-          fi
           git add --force dist
           GIT_AUTHOR_DATE="$date" GIT_COMMITTER_DATE="$date" git -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit --quiet --no-verify -m "chore(release): ${version} with dist"
-          tagged=$(git ls-remote origin "refs/tags/$version" | cut -f1)
-          if [ -n "$tagged" ] && [ "$tagged" != "$(git rev-parse HEAD)" ]; then echo "::error::tag $version is already on $tagged, not on the rebuilt commit"; exit 1; fi
+          head=$(git rev-parse HEAD)
+
+          # Never move the branch back (a re-run of an older release). ls-remote exits 2 when the branch is missing.
+          status=0
+          remote=$(git ls-remote --exit-code origin "refs/heads/$branch") || status=$?
+          if [ "$status" -eq 0 ] && [ "${remote%%$'\t'*}" != "$head" ]; then
+            # An identical re-run skips this: fetching HEAD itself at depth 1 would cut its history (HEAD~2).
+            git fetch --quiet --depth=1 origin "refs/heads/$branch"
+            current=$(git show FETCH_HEAD:package.json | jq -r .version)
+            [[ "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$branch holds version \"$current\", not X.Y.Z"; exit 1; }
+            newest=$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)
+            if [ "$newest" != "$version" ]; then
+              echo "::error::$branch already holds $current, newer than $version"
+              exit 1
+            fi
+          elif [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "::error::could not read $branch on origin"
+            exit 1
+          fi
+
+          # Nor away from a version tag already set (a rebuild that isn't byte-identical).
+          tagged=$(git ls-remote origin "refs/tags/$version")
+          tagged=${tagged%%$'\t'*}
+          if [ -n "$tagged" ] && [ "$tagged" != "$head" ]; then
+            echo "::error::tag $version is already on $tagged, not on the rebuilt commit $head"
+            exit 1
+          fi
+
           basic=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
           echo "::add-mask::$basic"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --force origin "HEAD:refs/heads/$branch"
