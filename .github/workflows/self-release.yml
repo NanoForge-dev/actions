@@ -100,7 +100,8 @@ jobs:
         if: steps.bot.outputs.token == ''
         run: echo "::warning::No NanoForge release app token (no key, a missing permission or a broken key), so this run uses GITHUB_TOKEN"
 
-      # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match.
+      # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match, as long
+      # as it gets the same token source: the author is the release app's bot, or github-actions[bot] on the fallback.
       # A release PR always carries a plain X.Y.Z version (no pre-release on this repo). Every git lookup below
       # fails the step when it errors (shell: bash runs with pipefail): a guard never skips itself.
       - name: Commit dist/ and push it to the release branch
