@@ -178,7 +178,7 @@ docker:
 
 ### Alpha images
 
-An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<branch>.<n>`): add a job after the reusable one in the caller's `alpha-release.yml`, and give the caller `packages: write`. It never gets `latest` (a pre-release), and it doesn't set `values-file`: the cloud-iac values are what production deploys. The package must be published by the alpha (not private, its group with `npm: true`), else `version` is empty and the job is skipped.
+An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<branch>.<n>`): add a job after the reusable one in the caller's `alpha-release.yml`; its own `permissions` give it `packages: write`. The image gets only the version tag, never `latest`, and it doesn't set `values-file`: the cloud-iac values are what production deploys. The package must be published by the alpha (not private, its group with `npm: true`), else `version` is empty and the job is skipped.
 
 ```yaml
 docker:
