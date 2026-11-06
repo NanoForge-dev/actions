@@ -35,16 +35,17 @@ jobs:
       - name: Prepare the repository and build dist/
         uses: ./.github/actions/prepare
 
-      # A short-lived token of the NanoForge bot GitHub App, created after the repo code ran (prepare), scoped to
-      # this repo. GITHUB_TOKEN can't have the workflows permission, which moving release/v3 and v3 across
-      # workflow changes needs. Without the app (variable unset), the steps fall back to GITHUB_TOKEN.
-      - name: Get a token from the NanoForge bot app
+      # A token of the NanoForge release GitHub App (contents + workflows, installed on this repo only): GITHUB_TOKEN
+      # can't have the workflows permission that moving release/v3 and v3 across workflow changes needs. Its key is a
+      # secret of this repo only, never of the consumers, since it can move v3. Without the app (variable unset), the
+      # steps fall back to GITHUB_TOKEN.
+      - name: Get a token from the NanoForge release app
         id: bot
-        if: vars.NANOFORGE_BOT_CLIENT_ID != ''
+        if: vars.NANOFORGE_RELEASE_CLIENT_ID != ''
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.NANOFORGE_BOT_CLIENT_ID }}
-          private-key: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
+          client-id: ${{ vars.NANOFORGE_RELEASE_CLIENT_ID }}
+          private-key: ${{ secrets.NANOFORGE_RELEASE_PRIVATE_KEY }}
           permission-contents: write
           permission-workflows: write
 

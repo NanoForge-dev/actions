@@ -36,7 +36,7 @@ A single action can also be used on its own: `uses: nanoforge-dev/actions/releas
 - Each repository keeps a `./.github/actions/prepare` action. The workflows run it before any release step. It calls [`setup`](#setup) and adds what the repo needs (emsdk, a build, env vars).
 - The workflows declare the secrets they use, and callers pass exactly those (never `secrets: inherit`, which would hand every secret of the repo to the code behind `v3`):
   - `NPM_PUBLISH_TOKEN`: npm publishing.
-  - `NANOFORGE_BOT_PRIVATE_KEY`: private key of the NanoForge bot GitHub App, which pushes to `NanoForge-dev/docs` and `NanoForge-dev/cloud-iac`. Its client ID is the org variable `NANOFORGE_BOT_CLIENT_ID`. Each job asks the app for a short-lived token scoped to the repo it pushes to (`actions/create-github-app-token`).
+  - `NANOFORGE_BOT_PRIVATE_KEY`: private key of the NanoForge bot GitHub App (client ID: the org variable `NANOFORGE_BOT_CLIENT_ID`), which pushes to `NanoForge-dev/docs` and `NanoForge-dev/cloud-iac`. Each job mints a one-hour token for the repo it pushes to (`actions/create-github-app-token`). That scoping is chosen by the caller: whoever holds the key gets everything the app is installed with, so the app has Contents write only, is installed on `docs` and `cloud-iac` only, and the org secret is visible only to the repos that release.
   - `NF_REGISTRY_KEY`: the NanoForge registry.
 - Checkouts don't keep credentials (`persist-credentials: false`): a token is only given to the command that pushes, never stored in `.git/config` while dependencies install.
 - Whoever can move the `v3` tag runs code with these secrets in every repo. Protect `main` (required review) and the `v*` and version tags (a ruleset that lets only the release update them).
@@ -183,6 +183,8 @@ docker:
         values-file: kubernetes/nanoforge/<app>-override.yaml
         cloud-iac-token: ${{ steps.bot.outputs.token }}
 ```
+
+The app token lasts one hour from the mint step: an image build longer than that fails at the cloud-iac push.
 
 ### Alpha images
 
@@ -361,7 +363,7 @@ To run an action locally, set its inputs as `INPUT_<NAME>` env vars, for example
 
 This repository's own CI is `self-tests.yml` (coding style and typecheck, unit tests with coverage, actionlint and the dependency audit). It uses the local actions (`./setup`, `./coverage-report`), not `@v3`, so a change is tested by its own code. The `tests.yml` workflow is for the other repositories.
 
-This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag or `release/v3` onto commits that change workflows needs the workflows permission, which `GITHUB_TOKEN` can't have: `self-release.yml` uses a token of the NanoForge bot GitHub App (contents and workflows, this repo only) when the variable `NANOFORGE_BOT_CLIENT_ID` is set, else `GITHUB_TOKEN`. The job fails if the move fails.
+This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag or `release/v3` onto commits that change workflows needs the workflows permission, which `GITHUB_TOKEN` can't have: `self-release.yml` uses a token of a second app, the NanoForge release GitHub App (Contents and Workflows write, installed on this repo only, key in this repo's secret `NANOFORGE_RELEASE_PRIVATE_KEY`, client ID in its variable `NANOFORGE_RELEASE_CLIENT_ID`), else `GITHUB_TOKEN`. It is kept apart from the bot app because its key can move `v3`: it never reaches a consumer's job. The job fails if the move fails.
 
 ## Links
 

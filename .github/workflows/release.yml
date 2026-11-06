@@ -97,7 +97,8 @@ jobs:
           npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
       # Docs run in this job, after the build of the prepare step, instead of preparing a second time.
-      # The bot app token is scoped to NanoForge-dev/docs and revoked when the job ends.
+      # The NanoForge bot app (contents only, on docs and cloud-iac) gives a token for NanoForge-dev/docs, revoked
+      # when the job ends. Its key reaches this job after the repo's own code ran (ADR 0010 accepted limit).
       - name: Get a docs token from the NanoForge bot app
         id: bot
         if: steps.release.outputs.docs-version != ''
@@ -111,8 +112,13 @@ jobs:
           repositories: docs
           permission-contents: write
 
+      - name: Warn that the docs can't be synced
+        if: steps.release.outputs.docs-version != '' && steps.bot.outcome != 'success'
+        run: |
+          echo "::warning::No NanoForge bot app token (NANOFORGE_BOT_CLIENT_ID, NANOFORGE_BOT_PRIVATE_KEY), so the docs are not synced"
+
       - name: Checkout the docs repository
-        if: steps.release.outputs.docs-version != ''
+        if: steps.bot.outcome == 'success'
         # Packages are already published here: a docs failure must not block the deploy jobs.
         continue-on-error: true
         uses: actions/checkout@v7
@@ -123,7 +129,7 @@ jobs:
           persist-credentials: false
 
       - name: Sync the docs
-        if: steps.release.outputs.docs-version != ''
+        if: steps.bot.outcome == 'success'
         continue-on-error: true
         uses: nanoforge-dev/actions/docs-sync@v3
         with:
