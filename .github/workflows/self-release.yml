@@ -1,26 +1,54 @@
 # This repo's own release. main never holds dist/: the release commit adds it on top of the merged commit and is
 # pushed to release/v<major>; the tags (<version>, v<major>) and the GitHub release point at it.
 name: Self Release
-run-name: "Self release: ${{ github.event.pull_request.title }}"
+run-name: "Self release check of ${{ github.sha }}"
 
+# On a push to main (a merged PR) rather than on the PR event, so the job runs on refs/heads/main and the release
+# environment, which holds the release app key and allows main only, can be used.
 on:
-  pull_request:
-    types:
-      - closed
+  push:
     branches:
       - main
 
 permissions: {}
 
 jobs:
-  release:
-    name: Release (${{ github.event.pull_request.title }})
+  check:
+    name: Check for a version change
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
+    if: github.repository_owner == 'NanoForge-dev'
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      # Only a commit that changes the package.json version (a merged release PR) is released.
+      - name: Compare the version with the previous commit
+        id: check
+        shell: bash
+        run: |
+          version=$(jq -r .version package.json)
+          previous=$(git show HEAD^1:package.json | jq -r .version)
+          if [ "$version" != "$previous" ]; then echo "version=$version" >> "$GITHUB_OUTPUT"; fi
+          printf '# Self release check\n\n## Result\n\n- package.json version: %s (was %s)\n\n' "$version" "$previous" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Release ${{ needs.check.outputs.version }}
+    runs-on: ubuntu-latest
+    needs: [check]
+    if: needs.check.outputs.version != ''
+    # Holds the release app's variable and key; allow main only (repo Settings, Environments).
+    environment: release
     permissions:
       contents: write
-    # On the job, so closed PRs that skip it can't cancel a queued release. GitHub keeps one pending run per
-    # group: a third release merged meanwhile cancels the second, which then needs a manual re-run.
+    # GitHub keeps one pending run per group: a third release merged meanwhile cancels the second, which then needs a
+    # manual re-run.
     concurrency:
       group: self-release
       cancel-in-progress: false
@@ -29,7 +57,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 2
 
       - name: Prepare the repository and build dist/
@@ -38,8 +65,8 @@ jobs:
       # A token of the NanoForge release GitHub App (installed on this repo only): moving release/v3 and v3 across
       # workflow changes needs the workflows permission. Its key is a secret of this repo only, never of the consumers,
       # since it can move v3.
-      # Whenever the app can't give a token (no key, or a permission it isn't granted), the job warns and falls back
-      # to GITHUB_TOKEN, which can't trigger other workflows nor change workflow files.
+      # Whenever the app can't give a token (no key, a permission it isn't granted, or a broken key), the job warns and
+      # falls back to GITHUB_TOKEN, which can't trigger other workflows nor change workflow files.
       - name: Get a token from the NanoForge release app
         id: bot
         if: vars.NANOFORGE_RELEASE_CLIENT_ID != ''
@@ -71,7 +98,7 @@ jobs:
 
       - name: Warn about the GITHUB_TOKEN fallback
         if: steps.bot.outputs.token == ''
-        run: echo "::warning::No NanoForge release app token, so this run uses GITHUB_TOKEN"
+        run: echo "::warning::No NanoForge release app token (no key, a missing permission or a broken key), so this run uses GITHUB_TOKEN"
 
       # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match.
       # A release PR always carries a plain X.Y.Z version (no pre-release on this repo). Every git lookup below

@@ -21,7 +21,9 @@ jobs:
   release-pr:
     name: Create release PR
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev'
+    # From main only: the release environment holds the release app key, and branch code must never get it.
+    if: github.repository_owner == 'NanoForge-dev' && github.ref == 'refs/heads/main'
+    environment: release
     permissions:
       contents: write
       pull-requests: write
@@ -38,8 +40,8 @@ jobs:
 
       # A token of the NanoForge release GitHub App: the release PR is then opened by the app, so self-tests run on it
       # (a PR opened with GITHUB_TOKEN triggers no workflow).
-      # Whenever the app can't give a token (no key, or a permission it isn't granted), the job warns and falls back
-      # to GITHUB_TOKEN, which can't trigger other workflows nor change workflow files.
+      # Whenever the app can't give a token (no key, a permission it isn't granted, or a broken key), the job warns and
+      # falls back to GITHUB_TOKEN, which can't trigger other workflows nor change workflow files.
       - name: Get a token from the NanoForge release app
         id: bot
         if: vars.NANOFORGE_RELEASE_CLIENT_ID != ''
@@ -71,7 +73,7 @@ jobs:
 
       - name: Warn about the GITHUB_TOKEN fallback
         if: steps.bot.outputs.token == ''
-        run: echo "::warning::No NanoForge release app token, so this run uses GITHUB_TOKEN"
+        run: echo "::warning::No NanoForge release app token (no key, a missing permission or a broken key), so this run uses GITHUB_TOKEN"
 
       - name: Bump the version and open the release PR
         uses: ./release-pr
