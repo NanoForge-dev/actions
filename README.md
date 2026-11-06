@@ -185,7 +185,7 @@ An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<bra
 - Check out `needs.alpha.outputs.sha`, the commit with the alpha version, so the image reports the version it is tagged with.
 - Pass the same `build-args`, `target` and `dockerfile` as the repo's release image job.
 - Alphas write their own layer cache (`:buildcache-prerelease`), so a release image never reuses layers built on a feature branch. It is hygiene, not isolation: a branch job with `packages: write` can still push any tag of the package.
-- A private app's alpha counts only from the version committed on its branch: a branch recreated with the same name, or with its `chore(release): alpha` commit dropped, reuses a number and overwrites that image tag. npm alphas are safe, since npm refuses a version twice.
+- A private app's alpha counts only from the version committed on its branch: a branch recreated with the same name, another branch with the same name after its prefix (`feat/x` and `fix/x`), or a branch with its `chore(release): alpha` commit dropped reuses a number and overwrites that image tag. npm alphas are safe, since npm refuses a version twice.
 
 ```yaml
 docker:

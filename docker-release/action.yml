@@ -52,7 +52,7 @@ runs:
         [[ "$VALUES_KEY" =~ ^(\.[A-Za-z0-9_-]+)+$ ]] || { echo "::error::values-key \"$VALUES_KEY\" must look like .image.tag"; exit 1; }
         if [ -n "$VALUES_FILE" ] && [ -z "$CLOUD_IAC_TOKEN" ]; then echo "::error::cloud-iac-token is required with values-file"; exit 1; fi
         # Both end up in step outputs: one line each, nothing that could add another output.
-        [[ "$REGISTRY" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || { echo "::error::registry \"$REGISTRY\" must be a host like ghcr.io"; exit 1; }
+        [[ "$REGISTRY" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._-]+)*$ ]] || { echo "::error::registry \"$REGISTRY\" must be a host like ghcr.io (with an optional port and path)"; exit 1; }
         [[ "$IMAGE" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::image \"$IMAGE\" must look like owner/name"; exit 1; }
         echo "image=${IMAGE,,}" >> "$GITHUB_OUTPUT"
         # An alpha is built from a feature branch: it writes its own cache and may read the production one; any
@@ -97,8 +97,8 @@ runs:
         labels: ${{ steps.meta.outputs.labels }}
         build-args: ${{ inputs.build-args }}
         # A registry cache, not type=gha: release runs start from pull_request events, whose GitHub cache scope
-        # (refs/pull/N/merge) no later release can read. Releases write :buildcache, pre-releases
-        # :buildcache-prerelease (see the check step).
+        # (refs/pull/N/merge) no later release can read. Alphas write :buildcache-prerelease, every other
+        # version :buildcache (see the check step).
         cache-from: ${{ steps.check.outputs.cache-from }}
         cache-to: ${{ steps.check.outputs.cache-to }}
 
