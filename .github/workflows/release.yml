@@ -13,8 +13,8 @@ on:
       NPM_PUBLISH_TOKEN:
         description: npm token (publishing)
         required: false
-      NANOFORGE_BOT_TOKEN:
-        description: Token that can push to NanoForge-dev/docs (docs sync)
+      NANOFORGE_BOT_PRIVATE_KEY:
+        description: Private key of the NanoForge bot GitHub App (docs sync), with the variable NANOFORGE_BOT_CLIENT_ID
         required: false
     outputs:
       released:
@@ -97,6 +97,20 @@ jobs:
           npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
       # Docs run in this job, after the build of the prepare step, instead of preparing a second time.
+      # The bot app token is scoped to NanoForge-dev/docs and revoked when the job ends.
+      - name: Get a docs token from the NanoForge bot app
+        id: bot
+        if: steps.release.outputs.docs-version != ''
+        # Packages are already published here: a docs failure must not block the deploy jobs.
+        continue-on-error: true
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NANOFORGE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
+          owner: NanoForge-dev
+          repositories: docs
+          permission-contents: write
+
       - name: Checkout the docs repository
         if: steps.release.outputs.docs-version != ''
         # Packages are already published here: a docs failure must not block the deploy jobs.
@@ -105,7 +119,7 @@ jobs:
         with:
           path: docs-dist
           repository: NanoForge-dev/docs
-          token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+          token: ${{ steps.bot.outputs.token }}
           persist-credentials: false
 
       - name: Sync the docs
@@ -114,7 +128,7 @@ jobs:
         uses: nanoforge-dev/actions/docs-sync@v3
         with:
           version: ${{ steps.release.outputs.docs-version }}
-          docs-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+          docs-token: ${{ steps.bot.outputs.token }}
 
   beta:
     name: Beta release

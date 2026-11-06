@@ -23,6 +23,6 @@ jobs:
     uses: nanoforge-dev/actions/.github/workflows/release.yml@v3
     secrets:
       NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-      NANOFORGE_BOT_TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+      NANOFORGE_BOT_PRIVATE_KEY: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
 
   # Repo-specific deploy jobs (Docker images) go after the release: see "Deploy jobs" in the README.

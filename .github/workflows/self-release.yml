@@ -35,13 +35,26 @@ jobs:
       - name: Prepare the repository and build dist/
         uses: ./.github/actions/prepare
 
+      # A short-lived token of the NanoForge bot GitHub App, created after the repo code ran (prepare), scoped to
+      # this repo. GITHUB_TOKEN can't have the workflows permission, which moving release/v3 and v3 across
+      # workflow changes needs. Without the app (variable unset), the steps fall back to GITHUB_TOKEN.
+      - name: Get a token from the NanoForge bot app
+        id: bot
+        if: vars.NANOFORGE_BOT_CLIENT_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NANOFORGE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-workflows: write
+
       # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match.
       # A release PR always carries a plain X.Y.Z version (no pre-release on this repo). Every git lookup below
       # fails the step when it errors (shell: bash runs with pipefail): a guard never skips itself.
       - name: Commit dist/ and push it to the release branch
         shell: bash
         env:
-          TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}
+          TOKEN: ${{ steps.bot.outputs.token || github.token }}
         run: |
           version=$(jq -r .version package.json)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::package.json version \"$version\" is not X.Y.Z"; exit 1; }
@@ -85,10 +98,9 @@ jobs:
           printf '# Release commit\n\n## Result\n\n- %s on %s, with dist/\n\n' "$(git rev-parse --short HEAD)" "$branch" >> "$GITHUB_STEP_SUMMARY"
 
       # HEAD is the dist commit: the version change is found against the commit before the merge (HEAD~2).
-      # Moving v3 onto commits that change workflows may need more than GITHUB_TOKEN can do: the bot token
-      # (with the workflow permission) is used when it is set. A failed move fails the job.
+      # A failed v3 move fails the job.
       - name: Tag the release commit, move v3 and create the GitHub release
         uses: ./release
         with:
           base: HEAD~2
-          github-token: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}
+          github-token: ${{ steps.bot.outputs.token || github.token }}
