@@ -1,4 +1,12 @@
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
+import {
+  copyFileSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { dirname, join } from "path";
 
 import { rewriteLinks } from "./links";
@@ -17,7 +25,7 @@ export interface FolderPlan {
 }
 
 /** Relative paths of the files under `dir`. Dot-entries are skipped; symlinks are problems (they could point out). */
-export const listFiles = (dir: string, problems: string[], at = ""): string[] =>
+const listFiles = (dir: string, problems: string[], at = ""): string[] =>
   readdirSync(join(dir, at), { withFileTypes: true })
     .filter((entry) => !entry.name.startsWith("."))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -40,10 +48,13 @@ export const planFolder = (
   prefix: string,
 ): { plan?: FolderPlan; problems: string[] } => {
   const problems: string[] = [];
+  // readdirSync follows a symlinked root, and readFileSync a symlinked navigation.json: refuse both.
+  if (lstatSync(src).isSymbolicLink()) return { problems: [".: symlinks are not synced"] };
   const files = listFiles(src, problems).filter((path) => path !== "navigation.json");
 
   let navigation: unknown;
   try {
+    if (lstatSync(join(src, "navigation.json")).isSymbolicLink()) return { problems };
     navigation = JSON.parse(readFileSync(join(src, "navigation.json"), "utf8"));
   } catch (error) {
     problems.push(`navigation.json: ${error instanceof Error ? error.message : String(error)}`);

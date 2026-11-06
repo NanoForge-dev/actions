@@ -16,7 +16,10 @@ export interface LinkContext {
 const MARKDOWN_LINK = /(\]\(\s*)(<[^>]*>|[^)\s]+)(?=\s*(?:\s["'][^)]*)?\))/g;
 const ATTRIBUTE = /(\b(?:href|src)=)(["'])(.*?)\2/g;
 const CODE_SPAN = /(`+)(?:(?!\1)[\s\S])*?\1/g;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+// Any indent: MDX fences inside <Steps>/<Tabs> are indented 4+ spaces.
+const FENCE = /^\s*(`{3,}|~{3,})/;
+// A link reference definition: `[id]: ./target "title"`.
+const DEFINITION = /^(\s*\[[^\]]+\]:\s*)(<[^>]*>|\S+)/;
 
 /** Absolute site URL of a relative `target` written in `file`, or the reason it can't be resolved. */
 const resolve = (
@@ -89,6 +92,12 @@ export const rewriteLinks = (
       return result.url;
     };
     // Inline code is kept as is.
+    const definition = DEFINITION.exec(line);
+    if (definition) {
+      const [whole, open = "", target = ""] = definition;
+      const url = target.startsWith("<") ? `<${replace(target.slice(1, -1))}>` : replace(target);
+      return `${open}${url}${line.slice(whole.length)}`;
+    }
     return rewriteOutsideCode(line, (text) =>
       text
         .replace(MARKDOWN_LINK, (_, open: string, target: string) =>

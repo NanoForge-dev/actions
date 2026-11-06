@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 
@@ -102,6 +102,18 @@ describe("rewriteLinks", () => {
     );
   });
 
+  test("scans indented fences as code and rewrites link definitions", () => {
+    const content = [
+      "    ```ts",
+      "    handlers[k](event);",
+      "    ```",
+      "[ref]: ../intro.mdx#x",
+    ].join("\n");
+    const result = rewrite(content);
+    expect(result.problems).toEqual([]);
+    expect(result.content.split("\n").at(-1)).toBe("[ref]: /docs/engine/intro#x");
+  });
+
   test("keeps anchors and queries", () => {
     expect(rewrite("[a](../intro.mdx#install) [b](setup?x=1#y)").content).toBe(
       "[a](/docs/engine/intro#install) [b](/docs/engine/guide/setup?x=1#y)",
@@ -155,6 +167,27 @@ describe("planFolder", () => {
       ".tsdocs/cache.mdx": "x",
     });
     expect(planFolder(src, "docs/x").problems).toEqual(["b.md: no frontmatter title"]);
+  });
+
+  test("refuses a symlinked root or navigation.json without reading through them", () => {
+    const outside = mkdtempSync(join(tmpdir(), "docs-sync-"));
+    tree(outside, {
+      "navigation.json": '["a"]',
+      "a.mdx": "---\ntitle: A\n---\n",
+      "creds.txt": "SECRET",
+    });
+    const root = mkdtempSync(join(tmpdir(), "docs-sync-"));
+    symlinkSync(outside, join(root, "docs"));
+    expect(planFolder(join(root, "docs"), "docs/x")).toEqual({
+      problems: [".: symlinks are not synced"],
+    });
+
+    const src = mkdtempSync(join(tmpdir(), "docs-sync-"));
+    tree(src, { "a.mdx": "---\ntitle: A\n---\n" });
+    symlinkSync(join(outside, "creds.txt"), join(src, "navigation.json"));
+    const result = planFolder(src, "docs/x");
+    expect(result.plan).toBeUndefined();
+    expect(result.problems).toEqual(["navigation.json: symlinks are not synced"]);
   });
 });
 
