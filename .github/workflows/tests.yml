@@ -57,14 +57,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Export the prepare env
-        uses: nanoforge-dev/actions/export-env@v3
-        with:
-          env: ${{ inputs.prepare-env }}
-
-      - name: Prepare the repository
-        uses: ./.github/actions/prepare
-
+      # Restored before prepare, so a build run there hits it.
       # Test jobs hold no token, so a PR may restore main's entries and write its own.
       - name: Cache the turbo outputs
         if: hashFiles('turbo.json') != ''
@@ -73,6 +66,14 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-style-${{ matrix.script }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-style-${{ matrix.script }}-
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
 
       - name: Run pnpm ${{ matrix.script }}
         id: run
@@ -100,6 +101,15 @@ jobs:
         with:
           persist-credentials: false
 
+      # Restored before prepare, so a build run there hits it.
+      - name: Cache the turbo outputs
+        if: hashFiles('turbo.json') != ''
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-unit-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-unit-
+
       - name: Export the prepare env
         uses: nanoforge-dev/actions/export-env@v3
         with:
@@ -108,12 +118,13 @@ jobs:
       - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      # No turbo cache here: a cache hit replays the logs without the coverage/ files (test:unit outputs are []),
+      # TURBO_FORCE: a cache hit would replay the logs without the coverage/ files (test:unit outputs are []),
       # so the coverage report would only count the packages whose tests ran.
       - name: Run the unit tests
         id: run
         env:
           SCRIPT: ${{ inputs.unit-script }}
+          TURBO_FORCE: "true"
         run: pnpm run "$SCRIPT"
 
       - name: Write the report
@@ -150,14 +161,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Export the prepare env
-        uses: nanoforge-dev/actions/export-env@v3
-        with:
-          env: ${{ inputs.prepare-env }}
-
-      - name: Prepare the repository
-        uses: ./.github/actions/prepare
-
       - name: Cache the turbo outputs
         if: hashFiles('turbo.json') != ''
         uses: actions/cache@v6
@@ -165,6 +168,14 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-e2e-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-e2e-
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
 
       # The browsers follow the Playwright version, which the lockfile pins.
       - name: Cache the Playwright browsers

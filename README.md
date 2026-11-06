@@ -137,7 +137,7 @@ Callers are in [`templates/workflows`](templates/workflows).
 
 - **Coverage:** the unit job summarizes the lcov reports matching `coverage-files` (default `**/coverage/lcov.info`; empty: none) with [`coverage-report`](#coverage-report) and uploads them as the `coverage` artifact. The unit script must write them.
 - **End-to-end hook:** when the repo has a `./.github/actions/prepare-e2e` action, the e2e job runs it after `prepare` (browsers, services, another repo's build). `playwright: true` caches `~/.cache/ms-playwright`, keyed on the lockfile. When the e2e tests fail, `e2e-report-path` (e.g. Playwright traces) is uploaded as the `e2e-report` artifact.
-- **Caching:** the pnpm store is cached by [`setup`](#setup) and the turbo outputs (`.turbo/cache`) in the style and e2e jobs when the repo has a `turbo.json`. The unit job runs without the turbo cache: a hit replays the logs without the `coverage/` files, so the report would miss packages. The audit job only needs Node.js and pnpm: it installs nothing and runs no `prepare`.
+- **Caching:** the pnpm store is cached by [`setup`](#setup) and the turbo outputs (`.turbo/cache`) in the style, unit and e2e jobs when the repo has a `turbo.json`. The cache is restored before `prepare`, so a build run there skips the untouched packages. The unit script itself runs with `TURBO_FORCE=true`: a hit replays the logs without the `coverage/` files, so the report would miss packages. The audit job only needs Node.js and pnpm: it installs nothing and runs no `prepare`.
 - **Reports:** every job writes its result in the job summary.
 
 ### Registry releases
