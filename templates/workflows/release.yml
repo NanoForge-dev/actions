@@ -23,6 +23,7 @@ jobs:
     uses: nanoforge-dev/actions/.github/workflows/release.yml@v3
     secrets:
       NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-      NANOFORGE_BOT_PRIVATE_KEY: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
+      # Only for a repo whose config has docs: remove it otherwise, so the key never reaches this job.
+      NANOFORGE_DOCS_PRIVATE_KEY: ${{ secrets.NANOFORGE_DOCS_PRIVATE_KEY }}
 
   # Repo-specific deploy jobs (Docker images) go after the release: see "Deploy jobs" in the README.

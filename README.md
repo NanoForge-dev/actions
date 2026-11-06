@@ -36,7 +36,9 @@ A single action can also be used on its own: `uses: nanoforge-dev/actions/releas
 - Each repository keeps a `./.github/actions/prepare` action. The workflows run it before any release step. It calls [`setup`](#setup) and adds what the repo needs (emsdk, a build, env vars).
 - The workflows declare the secrets they use, and callers pass exactly those (never `secrets: inherit`, which would hand every secret of the repo to the code behind `v3`):
   - `NPM_PUBLISH_TOKEN`: npm publishing.
-  - `NANOFORGE_BOT_PRIVATE_KEY`: private key of the NanoForge bot GitHub App (client ID: the org variable `NANOFORGE_BOT_CLIENT_ID`), which pushes to `NanoForge-dev/docs` and `NanoForge-dev/cloud-iac`. Each job mints a one-hour token for the repo it pushes to (`actions/create-github-app-token`). That scoping is chosen by the caller: whoever holds the key gets everything the app is installed with, so the app has Contents write only, is installed on `docs` and `cloud-iac` only, and the org secret is visible only to the repos that release.
+  - `NANOFORGE_DOCS_PRIVATE_KEY`: key of the NanoForge docs GitHub App (Contents write, installed on `NanoForge-dev/docs` only; client ID in the org variable `NANOFORGE_DOCS_CLIENT_ID`), for the docs sync. Pass it only from a repo whose config has docs.
+  - `NANOFORGE_DEPLOY_PRIVATE_KEY`: key of the NanoForge deploy GitHub App (Contents write, installed on `NanoForge-dev/cloud-iac` only; client ID in `NANOFORGE_DEPLOY_CLIENT_ID`), for the image jobs that update cloud-iac. Give it only to the repos that deploy.
+  - Each job mints a one-hour token for the repo it pushes to (`actions/create-github-app-token`). That scoping is the caller's choice: whoever holds a key gets everything its app is installed with. Hence one app per target, and keys visible only to the repos that need them. The release job runs the repo's own code before minting, so the docs key is exposed to that code (ADR 0010); the deploy key is only used in image jobs, where nothing but a checkout runs before it.
   - `NF_REGISTRY_KEY`: the NanoForge registry.
 - Checkouts don't keep credentials (`persist-credentials: false`): a token is only given to the command that pushes, never stored in `.git/config` while dependencies install.
 - Whoever can move the `v3` tag runs code with these secrets in every repo. Protect `main` (required review) and the `v*` and version tags (a ruleset that lets only the release update them).
@@ -171,8 +173,8 @@ docker:
     - id: bot
       uses: actions/create-github-app-token@v3
       with:
-        client-id: ${{ vars.NANOFORGE_BOT_CLIENT_ID }}
-        private-key: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
+        client-id: ${{ vars.NANOFORGE_DEPLOY_CLIENT_ID }}
+        private-key: ${{ secrets.NANOFORGE_DEPLOY_PRIVATE_KEY }}
         owner: NanoForge-dev
         repositories: cloud-iac
         permission-contents: write

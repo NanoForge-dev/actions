@@ -13,8 +13,8 @@ on:
       NPM_PUBLISH_TOKEN:
         description: npm token (publishing)
         required: false
-      NANOFORGE_BOT_PRIVATE_KEY:
-        description: Private key of the NanoForge bot GitHub App (docs sync), with the variable NANOFORGE_BOT_CLIENT_ID
+      NANOFORGE_DOCS_PRIVATE_KEY:
+        description: Private key of the NanoForge docs GitHub App (docs sync), with the variable NANOFORGE_DOCS_CLIENT_ID
         required: false
     outputs:
       released:
@@ -97,17 +97,17 @@ jobs:
           npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
       # Docs run in this job, after the build of the prepare step, instead of preparing a second time.
-      # The NanoForge bot app (contents only, on docs and cloud-iac) gives a token for NanoForge-dev/docs, revoked
+      # The NanoForge docs app (contents only, installed on docs only) gives a token for NanoForge-dev/docs, revoked
       # when the job ends. Its key reaches this job after the repo's own code ran (ADR 0010 accepted limit).
-      - name: Get a docs token from the NanoForge bot app
+      - name: Get a token from the NanoForge docs app
         id: bot
         if: steps.release.outputs.docs-version != ''
         # Packages are already published here: a docs failure must not block the deploy jobs.
         continue-on-error: true
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.NANOFORGE_BOT_CLIENT_ID }}
-          private-key: ${{ secrets.NANOFORGE_BOT_PRIVATE_KEY }}
+          client-id: ${{ vars.NANOFORGE_DOCS_CLIENT_ID }}
+          private-key: ${{ secrets.NANOFORGE_DOCS_PRIVATE_KEY }}
           owner: NanoForge-dev
           repositories: docs
           permission-contents: write
@@ -115,7 +115,7 @@ jobs:
       - name: Warn that the docs can't be synced
         if: steps.release.outputs.docs-version != '' && steps.bot.outcome != 'success'
         run: |
-          echo "::warning::No NanoForge bot app token (NANOFORGE_BOT_CLIENT_ID, NANOFORGE_BOT_PRIVATE_KEY), so the docs are not synced"
+          echo "::warning::No NanoForge docs app token (NANOFORGE_DOCS_CLIENT_ID, NANOFORGE_DOCS_PRIVATE_KEY), so the docs are not synced"
 
       - name: Checkout the docs repository
         if: steps.bot.outcome == 'success'
