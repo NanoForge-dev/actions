@@ -10,21 +10,10 @@ All notable changes to this project will be documented in this file.
 
 # [3.1.0](https://github.com/NanoForge-dev/actions/compare/3.0.0...3.1.0) - (2026-11-06)
 
-## Ci
+## Breaking Changes
 
 - **actions:** Push with short-lived tokens of one github app per target (#109) ([4820ab2](https://github.com/NanoForge-dev/actions/commit/4820ab245e856cbe9a5386db809e4ebde6426e88)) by @Exeloo
-  - **BREAKING CHANGE:** the NANOFORGE_BOT_TOKEN secret is replaced by the NANOFORGE_BOT_PRIVATE_KEY
-secret and the NANOFORGE_BOT_CLIENT_ID variable of the NanoForge bot GitHub App.
-
-* ci(actions): keep the release app key out of consumer jobs and skip docs without a token
-
-* ci(actions): one github app per push target (docs, deploy, release)
-
-* ci(actions): open the release pr and commit as the release app, falling back to github_token
-
-* ci(actions): keep the release app key in a main-only environment
-
-* docs(actions): note that a dist rebuild needs the same release token source
+  - **BREAKING CHANGE:** the NANOFORGE_BOT_TOKEN secret is replaced by the NANOFORGE_BOT_PRIVATE_KEY secret and the NANOFORGE_BOT_CLIENT_ID variable of the NanoForge bot GitHub App.
 
 # [3.0.0](https://github.com/NanoForge-dev/actions/compare/2.1.5...3.0.0) - (2026-11-06)
 
@@ -35,94 +24,8 @@ secret and the NANOFORGE_BOT_CLIENT_ID variable of the NanoForge bot GitHub App.
 ## Features
 
 - **actions:** Shared actions, reusable workflows and ci for v3 (#100) ([0a39bbc](https://github.com/NanoForge-dev/actions/commit/0a39bbc2ba27718ee8cfa5230bfc7553d5b2b2c5)) by @Exeloo
-  - **BREAKING CHANGE:** the npm package is no longer consumed. Every action is
-renamed, its inputs changed (dry is now dry-run, packages come from the
-config) and repositories must call them by git tag.
-
-* ci(actions): add reusable workflows and caller templates
-
-* docs(actions): document the v3 actions, workflows and release config
-
-* docs(actions): fix the auto version, docs-sync paths and config schema docs
-
-* fix(setup): create the swap file inline instead of a third-party action
-
-* fix(prerelease): output plain name@version in versions
-
-* fix(actions): keep tokens out of checkouts and pin third-party actions
-
-- checkouts use persist-credentials: false; pushes get their token per
-  command (release-pr, prerelease, docs-sync, docker-release)
-- caller templates pass the declared secrets instead of secrets: inherit
-- prepare-env refuses keys such as NODE_OPTIONS, PATH, LD_* or GITHUB_*
-- non-GitHub actions pinned by commit sha; dependabot scans the action dirs
-- docs sync runs in the release job, so the repo is prepared once
-
-* fix(actions): align names, defaults and outputs across actions and workflows
-
-* fix(actions): fail on tag errors and scope docs and versions correctly
-
-- tag, release and v<major> failures fail the job (an existing tag only warns)
-- docs sync only after a release of docs.group, with that group's version,
-  and never fails the release job
-- a shared group bumps from the highest version of the whole group, so
-  releasing a subset never reuses a version
-- an independent release skips packages with nothing to release
-- alpha and beta skip private packages and npm: false groups
-- groups can't share a tag format that doesn't name them
-
-* fix(actions): allowlist prepare env, mask auth headers and check tag errors
-
-- new export-env action: one allowlist (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*,
-  VITE_*) instead of five copies of a denylist
-- per-command git auth headers are masked; docs-sync drops its token from
-  the env before running the repo's docs script; input renamed docs-token
-- a 422 only counts as a re-run when GitHub says the tag or release already
-  exists, and an existing tag must point at the same commit
-
-* fix(actions): count shared commits from the oldest release and validate tag formats
-
-- a shared release bumps the group's highest version but counts commits
-  from the oldest last release of the selected packages, so no unreleased
-  commit is missed
-- tagFormat must contain {version}, never {packages} or {run}, {package}
-  when independent, and {package} only in a single-package shared group;
-  docs.group must be shared
-- release plans the tags before publishing to npm
-- prerelease publishes in dependency order and its commit lists what it published
-- the release job fetches full history and tags for the docs references
-
-* fix(actions): count shared commits per package and push docs without the token step
-
-- a shared release counts each selected package's commits from its own last
-  release; a package with no tag counts from the group's current tag, never
-  the whole history, so no false major bump
-- docs-sync commits in the step that runs the repo's docs script and pushes
-  in a separate step that alone receives the token
-- the base64 credential is masked on its own as well as the full header
-
-* fix(actions): push docs from a clean repo and report empty shared releases
-
-- docs-sync pushes from a fresh bare repo with no system or global git
-  config, hooks disabled and a checked github.com remote, so config written
-  by the docs script can't redirect the authenticated push
-- release-pr checks for an empty shared release before picking a version,
-  so it fails with the nothing-to-release message instead of a TypeError
-
-* fix(docs-sync): push only to the docs-repository input with a header scoped to it
-
-* fix(docs-sync): push from a fresh temp repo with proxy and tls settings forced
-
-* ci(actions): reference the actions as nanoforge-dev in lowercase
-
-* build(actions): update the transitive dependencies flagged by pnpm audit
-
-* feat(nf-registry-release): bump changed packages in a release pr and publish only newer versions
+  - **BREAKING CHANGE:** the npm package is no longer consumed. Every action is renamed, its inputs changed (dry is now dry-run, packages come from the config) and repositories must call them by git tag.
   - **BREAKING CHANGE:** dist/ is no longer committed on main; use @v3, a version tag or release/v3.
-
-* fix(actions): never move the release branch back and guard the release base ref
-
-* fix(actions): make the release branch guards fail closed
 
 # [2.1.5](https://github.com/NanoForge-dev/actions/compare/2.1.4...2.1.5) - (2026-06-17)
 
