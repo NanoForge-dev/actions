@@ -7423,20 +7423,26 @@ var main = async () => {
   const onDefaultBranch = process5.env.GITHUB_REF_NAME === defaultBranch();
   const versions = [];
   const deprecated = [];
+  const versionedOnly = [];
   const planned = [];
   for (const pkg of findPackages(await listWorkspace(), names)) {
-    if (pkg.private || !groupOf(config, pkg.name)?.npm) {
+    const npm = !pkg.private && !!groupOf(config, pkg.name)?.npm;
+    if (!npm && channel === "beta") {
       info(`Skipping ${pkg.name}: ${pkg.private ? "private" : "npm is disabled for its group"}`);
       continue;
     }
-    const { newVersion, toDeprecate } = resolveRelease(pkg.version, channel, await fetchDevVersions(pkg.name, channel));
-    info(`Resolved next ${channel}: ${pkg.name}@${newVersion}`);
+    const { newVersion, toDeprecate } = resolveRelease(pkg.version, channel, npm ? await fetchDevVersions(pkg.name, channel) : []);
+    info(`Resolved next ${channel}: ${pkg.name}@${newVersion}${npm ? "" : " (not published on npm)"}`);
     await setVersion(pkg.path, newVersion);
-    planned.push({ pkg, newVersion, toDeprecate });
+    planned.push({ pkg, newVersion, toDeprecate: npm ? toDeprecate : [], npm });
   }
   const ordered = sortReleaseTree(planned.map((plan) => ({ ...plan, name: plan.pkg.name, dependsOn: plan.pkg.dependsOn }))).flat();
-  for (const { pkg, newVersion, toDeprecate } of ordered) {
+  for (const { pkg, newVersion, toDeprecate, npm } of ordered) {
     versions.push(`${pkg.name}@${newVersion}`);
+    if (!npm) {
+      versionedOnly.push(`\`${pkg.name}@${newVersion}\``);
+      continue;
+    }
     deprecated.push(...toDeprecate.map((version) => `\`${pkg.name}@${version}\``));
     if (dry) {
       info(`[DRY] Would publish ${pkg.name}@${newVersion} and deprecate: ${toDeprecate.join(", ") || "none"}`);
@@ -7458,9 +7464,15 @@ var main = async () => {
   else if (await commitAll(`chore(release): ${channel} ${versions.join(", ")}`))
     await push(".", undefined, process5.env.GITHUB_TOKEN);
   setOutput("versions", JSON.stringify(versions));
-  setOutput("version", ordered.length === 1 ? ordered[0]?.newVersion ?? "" : "");
+  const [only] = ordered;
+  setOutput("version", ordered.length === 1 && only ? only.newVersion : "");
+  setOutput("sha", await headSha());
   await writeSummary(`${channel === "alpha" ? "Alpha" : "Beta"} release ${versions.join(", ")}`, dry, [
-    ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
+    [
+      "Published on npm",
+      ordered.filter(({ npm }) => npm).map(({ pkg, newVersion }) => `\`${pkg.name}@${newVersion}\` (tag \`${channel}\`)`)
+    ],
+    ["Versioned only (private or npm disabled)", versionedOnly],
     ["Deprecated", deprecated]
   ]);
 };

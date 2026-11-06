@@ -112,7 +112,7 @@ Callers are in [`templates/workflows`](templates/workflows).
 | ---------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | `release-pr.yml`             | `workflow_dispatch`                                   | `group`, `packages`, `version`, `dry-run`, `prepare-env`                                                                      | `pull-request`                                   |
 | `release.yml`                | `pull_request: closed` on `main`                      | `prepare-env`                                                                                                                 | `released`, `version`, `tag`, `tags`, `packages` |
-| `alpha-release.yml`          | `workflow_dispatch` (not on the default branch)       | `packages`, `dry-run`, `prepare-env`                                                                                          | `version`, `versions`                            |
+| `alpha-release.yml`          | `workflow_dispatch` (not on the default branch)       | `packages`, `dry-run`, `prepare-env`                                                                                          | `version`, `versions`, `sha`                     |
 | `nf-registry-release-pr.yml` | `workflow_dispatch`                                   | `path`, `dry-run`                                                                                                             | `pull-request`, `packages`                       |
 | `nf-registry-release.yml`    | `pull_request: closed` on `main`, `workflow_dispatch` | `package`, `exclude`, `path`, `dry-run`, `prepare-env`                                                                        | `released`, `packages`                           |
 | `tests.yml`                  | `pull_request`, `push` on `main`, `workflow_dispatch` | `style-scripts`, `unit-script`, `coverage-files`, `e2e-script`, `e2e-report-path`, `playwright`, `audit-level`, `prepare-env` |                                                  |
@@ -178,7 +178,13 @@ docker:
 
 ### Alpha images
 
-An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<branch>.<n>`): add a job after the reusable one in the caller's `alpha-release.yml`; its own `permissions` give it `packages: write`. The image gets only the version tag, never `latest`, and it doesn't set `values-file`: the cloud-iac values are what production deploys. The package must be published by the alpha (not private, its group with `npm: true`), else `version` is empty and the job is skipped.
+An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<branch>.<n>`): add a job after the reusable one in the caller's `alpha-release.yml`; its own `permissions` give it `packages: write`. The image gets only the version tag, never `latest`, and it doesn't set `values-file`: the cloud-iac values are what production deploys.
+
+- The app must be in a group of `.github/nanoforge.json`. A private app (or a group with `npm: false`) isn't published on npm, but it still gets its alpha version, committed on the branch like any alpha.
+- `version` is set when the alpha holds one package (else empty, and the job is skipped), also on a dry run: keep the `!inputs.dry-run` guard.
+- Check out `needs.alpha.outputs.sha`, the commit with the alpha version, so the image reports the version it is tagged with.
+- Pass the same `build-args`, `target` and `dockerfile` as the repo's release image job.
+- Alphas write their own layer cache (`:buildcache-prerelease`), so a release image never reuses layers built on a feature branch.
 
 ```yaml
 docker:
@@ -193,6 +199,7 @@ docker:
     - uses: actions/checkout@v7
       with:
         persist-credentials: false
+        ref: ${{ needs.alpha.outputs.sha }}
     - uses: nanoforge-dev/actions/docker-release@v3
       with:
         image: ${{ github.repository }}
@@ -240,7 +247,7 @@ Outputs: `released`, `version`, `tag` (of the first release), `tags`, `packages`
 
 ### `prerelease`
 
-Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm under the channel's dist-tag, and deprecates the older ones. Private packages and groups with `npm: false` are skipped. An alpha bump is committed to its feature branch, so the next alpha counts from it.
+Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm under the channel's dist-tag, and deprecates the older ones. Private packages and groups with `npm: false` aren't published: an alpha still gives them a version (e.g. for a Docker image), a beta skips them. An alpha bump is committed to its feature branch, so the next alpha counts from it.
 
 | Input                                            | Default | Description                                                                      |
 | ------------------------------------------------ | ------- | -------------------------------------------------------------------------------- |
@@ -248,7 +255,7 @@ Publishes `X.Y.Z-alpha.<branch>.<n>` (alpha) or `X.Y.Z-beta.<sha>` (beta) on npm
 | `packages`                                       |         | Empty: the only package of the config (alpha) or the `betaOnMerge` groups (beta) |
 | `npm-token`, `config`, `dry-run`, `github-token` |         |                                                                                  |
 
-Outputs: `versions` (JSON `name@version` list), `version` (the plain version when one package was published, else empty).
+Outputs: `versions` (JSON `name@version` list), `version` (the plain version when the pre-release holds one package, else empty), both also computed on a dry run; `sha` (the commit holding the versions: the pushed alpha bump, else the checked-out commit).
 
 ### `nf-registry-release-pr`
 
@@ -315,7 +322,7 @@ Exports static build variables, one `KEY=VALUE` per line, to the next steps of t
 
 ### `docker-release`
 
-Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the layers in the registry under `<registry>/<image>:buildcache` (not the GitHub cache: release runs start from `pull_request` events, whose cache scope no later run can read), then sets that tag in a Helm values file of `NanoForge-dev/cloud-iac` and pushes it (it retries when other image jobs push at the same time).
+Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the layers in the registry under `<registry>/<image>:buildcache`, or `:buildcache-prerelease` for a pre-release version (which reads both and writes only its own) (not the GitHub cache: release runs start from `pull_request` events, whose cache scope no later run can read), then sets that tag in a Helm values file of `NanoForge-dev/cloud-iac` and pushes it (it retries when other image jobs push at the same time).
 
 | Input                             | Default                       | Description                                             |
 | --------------------------------- | ----------------------------- | ------------------------------------------------------- |

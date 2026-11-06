@@ -3,7 +3,7 @@ import { $ } from "bun";
 import process from "node:process";
 
 import { type NanoforgeConfig, groupOf, loadConfig } from "../lib/config";
-import { commitAll, push } from "../lib/git";
+import { commitAll, headSha, push } from "../lib/git";
 import { defaultBranch } from "../lib/github";
 import { getBoolean, getList, getString } from "../lib/inputs";
 import { sortReleaseTree } from "../lib/release-tree";
@@ -67,29 +67,45 @@ const main = async () => {
   const versions: string[] = [];
   const deprecated: string[] = [];
 
-  const planned: { pkg: WorkspacePackage; newVersion: string; toDeprecate: string[] }[] = [];
+  const versionedOnly: string[] = [];
+
+  const planned: {
+    pkg: WorkspacePackage;
+    newVersion: string;
+    toDeprecate: string[];
+    npm: boolean;
+  }[] = [];
   for (const pkg of findPackages(await listWorkspace(), names)) {
-    if (pkg.private || !groupOf(config, pkg.name)?.npm) {
+    const npm = !pkg.private && !!groupOf(config, pkg.name)?.npm;
+    // A private app still gets an alpha version (its Docker image tag), committed so the next one counts
+    // from it. A beta of it would have no use: it is skipped.
+    if (!npm && channel === "beta") {
       info(`Skipping ${pkg.name}: ${pkg.private ? "private" : "npm is disabled for its group"}`);
       continue;
     }
     const { newVersion, toDeprecate } = resolveRelease(
       pkg.version,
       channel,
-      await fetchDevVersions(pkg.name, channel),
+      npm ? await fetchDevVersions(pkg.name, channel) : [],
     );
-    info(`Resolved next ${channel}: ${pkg.name}@${newVersion}`);
+    info(
+      `Resolved next ${channel}: ${pkg.name}@${newVersion}${npm ? "" : " (not published on npm)"}`,
+    );
     // Every version is set before any publish, so workspace: dependencies point at the new versions.
     await setVersion(pkg.path, newVersion);
-    planned.push({ pkg, newVersion, toDeprecate });
+    planned.push({ pkg, newVersion, toDeprecate: npm ? toDeprecate : [], npm });
   }
 
   // Dependencies first, as in a release, so a dependent never points at a version that isn't on npm.
   const ordered = sortReleaseTree(
     planned.map((plan) => ({ ...plan, name: plan.pkg.name, dependsOn: plan.pkg.dependsOn })),
   ).flat();
-  for (const { pkg, newVersion, toDeprecate } of ordered) {
+  for (const { pkg, newVersion, toDeprecate, npm } of ordered) {
     versions.push(`${pkg.name}@${newVersion}`);
+    if (!npm) {
+      versionedOnly.push(`\`${pkg.name}@${newVersion}\``);
+      continue;
+    }
     deprecated.push(...toDeprecate.map((version) => `\`${pkg.name}@${version}\``));
 
     if (dry) {
@@ -116,13 +132,22 @@ const main = async () => {
     await push(".", undefined, process.env.GITHUB_TOKEN);
 
   setOutput("versions", JSON.stringify(versions));
-  // A plain version for one package, e.g. the Docker image tag of an alpha.
-  setOutput("version", ordered.length === 1 ? (ordered[0]?.newVersion ?? "") : "");
+  // A plain version for one package, e.g. the Docker image tag of an alpha, and the commit that holds it, so
+  // an image is built with the version it is tagged with.
+  const [only] = ordered;
+  setOutput("version", ordered.length === 1 && only ? only.newVersion : "");
+  setOutput("sha", await headSha());
   await writeSummary(
     `${channel === "alpha" ? "Alpha" : "Beta"} release ${versions.join(", ")}`,
     dry,
     [
-      ["Published", versions.map((version) => `\`${version}\` (tag \`${channel}\`)`)],
+      [
+        "Published on npm",
+        ordered
+          .filter(({ npm }) => npm)
+          .map(({ pkg, newVersion }) => `\`${pkg.name}@${newVersion}\` (tag \`${channel}\`)`),
+      ],
+      ["Versioned only (private or npm disabled)", versionedOnly],
       ["Deprecated", deprecated],
     ],
   );

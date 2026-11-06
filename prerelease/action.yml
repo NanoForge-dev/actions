@@ -1,5 +1,5 @@
 name: "NanoForge prerelease"
-description: "Publishes alpha (per branch) or beta (per commit) versions on npm and deprecates the older ones"
+description: "Publishes alpha (per branch) or beta (per commit) versions on npm and deprecates the older ones. Private packages get an alpha version without npm"
 inputs:
   channel:
     description: "alpha or beta"
@@ -21,11 +21,14 @@ inputs:
     default: "${{ github.token }}"
 outputs:
   versions:
-    description: "JSON list of the published versions (name@version)"
+    description: "JSON list of the pre-release versions (name@version), also computed on a dry run"
     value: ${{ steps.run.outputs.versions }}
   version:
-    description: "Published version when one package was released, e.g. 1.2.1-alpha.my-branch.0 (else empty)"
+    description: "Pre-release version when one package was released, e.g. 1.2.1-alpha.my-branch.0 (else empty), also computed on a dry run"
     value: ${{ steps.run.outputs.version }}
+  sha:
+    description: "Commit holding the versions: the pushed alpha bump, else the checked-out commit"
+    value: ${{ steps.run.outputs.sha }}
 runs:
   using: composite
   steps:

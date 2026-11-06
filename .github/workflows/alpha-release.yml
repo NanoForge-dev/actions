@@ -22,11 +22,14 @@ on:
         required: false
     outputs:
       version:
-        description: Alpha version when one package was released (e.g. a Docker image tag), else empty
+        description: Alpha version when one package was released, e.g. 1.2.1-alpha.my-branch.0 (else empty), also computed on a dry run
         value: ${{ jobs.alpha.outputs.version }}
       versions:
-        description: JSON list of the published name@version
+        description: JSON list of the alpha versions (name@version), also computed on a dry run
         value: ${{ jobs.alpha.outputs.versions }}
+      sha:
+        description: Commit holding the alpha versions, to build an image from
+        value: ${{ jobs.alpha.outputs.sha }}
 
 permissions: {}
 
@@ -41,6 +44,7 @@ jobs:
     outputs:
       version: ${{ steps.alpha.outputs.version }}
       versions: ${{ steps.alpha.outputs.versions }}
+      sha: ${{ steps.alpha.outputs.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -55,7 +59,7 @@ jobs:
       - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Publish the alpha on npm
+      - name: Publish the alpha on npm (private packages get the version only)
         id: alpha
         uses: nanoforge-dev/actions/prerelease@v3
         with:
