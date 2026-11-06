@@ -315,8 +315,8 @@ Validates the docs of the source repository, then replaces its own folders of th
 **Source layout** (in `src-path`):
 
 ```
-docs/docs/                   Documentation tab: .mdx/.md pages and their assets
-docs/docs/navigation.json    required when docs/docs exists
+docs/docs/                   required, Documentation tab: .mdx/.md pages and their assets
+docs/docs/navigation.json    required
 docs/guides/                 optional, Guides tab
 docs/guides/navigation.json  required when docs/guides exists
 ```

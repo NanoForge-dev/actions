@@ -13,11 +13,16 @@ import { generateReferences, isVersion, writeReferences } from "./references";
 
 const PARTS = ["docs", "guides"] as const;
 
-/** Plans docs/docs and docs/guides of the source; a part the source doesn't have is undefined. */
+/**
+ * Plans docs/docs and docs/guides of the source. Guides are optional (no plan: the target folder is removed);
+ * docs are required, so a wrong src-path can't wipe the published docs.
+ */
 const planParts = (srcPath: string, category: string) =>
   PARTS.map((part) => {
     const src = join(srcPath, "docs", part);
-    const result = existsSync(src) ? planFolder(src, `${part}/${category}`) : { problems: [] };
+    const result = existsSync(src)
+      ? planFolder(src, `${part}/${category}`)
+      : { problems: part === "docs" ? ["missing: every synced repo has docs/docs"] : [] };
     return { part, src, ...result };
   });
 
