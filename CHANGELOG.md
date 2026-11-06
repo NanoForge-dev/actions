@@ -17,15 +17,15 @@ All notable changes to this project will be documented in this file.
 
 # [3.0.0](https://github.com/NanoForge-dev/actions/compare/2.1.5...3.0.0) - (2026-11-06)
 
-## Bug Fixes
-
-- **release-dev:** Add deprecated check on version resolution (#92) ([ee45c12](https://github.com/NanoForge-dev/actions/commit/ee45c1266dbef0fa8cf481773a483d963de17772)) by @Exeloo
-
-## Features
+## Breaking Changes
 
 - **actions:** Shared actions, reusable workflows and ci for v3 (#100) ([0a39bbc](https://github.com/NanoForge-dev/actions/commit/0a39bbc2ba27718ee8cfa5230bfc7553d5b2b2c5)) by @Exeloo
   - **BREAKING CHANGE:** the npm package is no longer consumed. Every action is renamed, its inputs changed (dry is now dry-run, packages come from the config) and repositories must call them by git tag.
   - **BREAKING CHANGE:** dist/ is no longer committed on main; use @v3, a version tag or release/v3.
+
+## Bug Fixes
+
+- **release-dev:** Add deprecated check on version resolution (#92) ([ee45c12](https://github.com/NanoForge-dev/actions/commit/ee45c1266dbef0fa8cf481773a483d963de17772)) by @Exeloo
 
 # [2.1.5](https://github.com/NanoForge-dev/actions/compare/2.1.4...2.1.5) - (2026-06-17)
 
