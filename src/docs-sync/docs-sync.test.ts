@@ -96,6 +96,12 @@ describe("rewriteLinks", () => {
     );
   });
 
+  test("rewrites links whose text is inline code", () => {
+    expect(rewrite("[`Intro`](../intro.mdx).[`x`](../intro.mdx#x)").content).toBe(
+      "[`Intro`](/docs/engine/intro).[`x`](/docs/engine/intro#x)",
+    );
+  });
+
   test("keeps anchors and queries", () => {
     expect(rewrite("[a](../intro.mdx#install) [b](setup?x=1#y)").content).toBe(
       "[a](/docs/engine/intro#install) [b](/docs/engine/guide/setup?x=1#y)",

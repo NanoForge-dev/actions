@@ -12,7 +12,8 @@ export interface LinkContext {
 }
 
 // `[text](target "title")`, `![alt](<target>)`
-const MARKDOWN_LINK = /(!?\[[^\]]*\]\(\s*)(<[^>]*>|[^)\s]+)(?=\s*(?:\s["'][^)]*)?\))/g;
+// Matches from "](" only: link text may hold inline code (TypeDoc's [`Foo`](Foo.mdx)), which splits the line.
+const MARKDOWN_LINK = /(\]\(\s*)(<[^>]*>|[^)\s]+)(?=\s*(?:\s["'][^)]*)?\))/g;
 const ATTRIBUTE = /(\b(?:href|src)=)(["'])(.*?)\2/g;
 const CODE_SPAN = /(`+)(?:(?!\1)[\s\S])*?\1/g;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
