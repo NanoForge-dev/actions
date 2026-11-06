@@ -12,9 +12,6 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: self-release
-
 jobs:
   release:
     name: Release (${{ github.event.pull_request.title }})
@@ -22,6 +19,10 @@ jobs:
     if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
     permissions:
       contents: write
+    # On the job, so closed PRs that skip it can't cancel a queued release.
+    concurrency:
+      group: self-release
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -34,8 +35,8 @@ jobs:
         uses: ./.github/actions/prepare
 
       # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match.
+      # A release PR always carries a plain X.Y.Z version (no pre-release on this repo).
       - name: Commit dist/ and push it to the release branch
-        id: dist
         env:
           TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}
         run: |
@@ -43,15 +44,22 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::package.json version \"$version\" is not X.Y.Z"; exit 1; }
           branch="release/v${version%%.*}"
           date=$(git log -1 --format=%cI)
+          # Never move the branch back (a re-run of an older release), nor away from a version tag already set.
+          if git fetch --quiet --depth=1 origin "refs/heads/$branch" 2>/dev/null; then
+            current=$(git show FETCH_HEAD:package.json | jq -r .version)
+            newest=$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)
+            [ "$newest" = "$version" ] || { echo "::error::$branch already holds $current, newer than $version"; exit 1; }
+          fi
           git add --force dist
           GIT_AUTHOR_DATE="$date" GIT_COMMITTER_DATE="$date" git -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit --quiet --no-verify -m "chore(release): ${version} with dist"
+          tagged=$(git ls-remote origin "refs/tags/$version" | cut -f1)
+          if [ -n "$tagged" ] && [ "$tagged" != "$(git rev-parse HEAD)" ]; then echo "::error::tag $version is already on $tagged, not on the rebuilt commit"; exit 1; fi
           basic=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
           echo "::add-mask::$basic"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --force origin "HEAD:refs/heads/$branch"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          printf '# Release commit\n\n- %s on %s, with dist/\n\n' "$(git rev-parse --short HEAD)" "$branch" >> "$GITHUB_STEP_SUMMARY"
+          printf '# Release commit\n\n## Result\n\n- %s on %s, with dist/\n\n' "$(git rev-parse --short HEAD)" "$branch" >> "$GITHUB_STEP_SUMMARY"
 
       # HEAD is the dist commit: the version change is found against the commit before the merge (HEAD~2).
       # Moving v3 onto commits that change workflows may need more than GITHUB_TOKEN can do: the bot token

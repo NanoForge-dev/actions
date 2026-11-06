@@ -237,12 +237,13 @@ Outputs: `branch`, `version` (when every package gets the same version), `pull-r
 
 ### `release`
 
-Finds the packages of the config whose version changed between `HEAD^1` and `HEAD`. It publishes them on npm in dependency order (skipping private, `npm: false` and already published ones), then creates the tags and GitHub releases. The changelog comes from the package, or from the root for a shared release of several packages. It does nothing when no version changed. A tag already on the same commit, or a release that already exists (a re-run), only warns; any other failure, including moving `v<major>`, fails the job.
+Finds the packages of the config whose version changed between `base` (`HEAD^1`, the merged commit's parent) and `HEAD`, and tags `HEAD`. It publishes them on npm in dependency order (skipping private, `npm: false` and already published ones), then creates the tags and GitHub releases. The changelog comes from the package, or from the root for a shared release of several packages. It does nothing when no version changed. A tag already on the same commit, or a release that already exists (a re-run), only warns; any other failure, including moving `v<major>`, fails the job.
 
-| Input                               | Default | Description                   |
-| ----------------------------------- | ------- | ----------------------------- |
-| `npm-token`                         |         | npm token (`NODE_AUTH_TOKEN`) |
-| `config`, `dry-run`, `github-token` |         |                               |
+| Input                               | Default  | Description                           |
+| ----------------------------------- | -------- | ------------------------------------- |
+| `npm-token`                         |          | npm token (`NODE_AUTH_TOKEN`)         |
+| `base`                              | `HEAD^1` | Commit the versions are compared with |
+| `config`, `dry-run`, `github-token` |          |                                       |
 
 Outputs: `released`, `version`, `tag` (of the first release), `tags`, `packages` (JSON), `docs-version` (the docs group's version, empty when it wasn't released).
 
@@ -339,7 +340,7 @@ Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the
 
 ## Development
 
-The TypeScript sources are in `src/` and run with Bun. The actions run the bundles in `dist/` (`pnpm build`), which is never committed on `main` or feature branches (it is gitignored). This repo's CI builds it in `./.github/actions/prepare`. A release builds it too: `self-release.yml` commits it on top of the merged commit, pushes that commit to `release/v<major>` (force-moved, like the `v<major>` tag) and puts the tags and the GitHub release on it. So `@v3`, `@<version>` and `@release/v3` hold `dist/`, `@main` doesn't.
+The TypeScript sources are in `src/` and run with Bun. The actions run the bundles in `dist/` (`pnpm build`), which is never committed on `main` or feature branches (it is gitignored). This repo's CI builds it in `./.github/actions/prepare`. A release builds it too: `self-release.yml` commits it on top of the merged commit, pushes that commit to `release/v<major>` (force-moved, like the `v<major>` tag) and puts the tags and the GitHub release on it. It refuses to move `release/v<major>` back to an older version, and stops before pushing when the version tag already sits on another commit. So `@v3`, `@<version>` and `@release/v3` hold `dist/`, `@main` doesn't.
 
 ```sh
 pnpm test        # bun test

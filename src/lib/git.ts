@@ -47,7 +47,7 @@ export const tagExists = async (tag: string): Promise<boolean> =>
 
 /** Content of `path` at `ref`, or undefined when it doesn't exist there. */
 export const showFile = async (ref: string, path: string): Promise<string | undefined> => {
-  const result = await $`git show ${`${ref}:${path}`}`.nothrow().quiet();
+  const result = await $`git show --end-of-options ${`${ref}:${path}`}`.nothrow().quiet();
   return result.exitCode === 0 ? result.text() : undefined;
 };
 
