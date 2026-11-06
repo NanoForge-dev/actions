@@ -1,24 +1,32 @@
-name: "Label sync"
+# Reusable (and used by this repo): syncs the repository labels with .github/labels.yml.
+name: Label Sync
+
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - ".github/labels.yml"
+
+permissions: {}
+
 jobs:
   label-sync:
     name: Label sync
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev'
     permissions:
       contents: read
       issues: write
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Label sync
-        uses: crazy-max/ghaction-github-labeler@v6
+        uses: actions/checkout@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Sync the labels with .github/labels.yml
+        uses: crazy-max/ghaction-github-labeler@548a7c3603594ec17c819e1239f281a3b801ab4d # v6.0.0
+        with:
+          github-token: ${{ github.token }}

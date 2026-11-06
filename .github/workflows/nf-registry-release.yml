@@ -1,0 +1,96 @@
+# Reusable: publishes the NanoForge registry packages whose manifest version is newer than the registry, then tags
+# them {package}@{version}. Runs on a merged nf-releases/* PR (or a dispatch). See templates/workflows/nf-registry-release.yml.
+name: NanoForge Registry Release
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: One package to release with its dependencies (empty or "all" = every package)
+        type: string
+        default: all
+      exclude:
+        description: Comma-separated packages not to release, unless a released package needs them
+        type: string
+        default: ""
+      path:
+        description: Directory holding the packages
+        type: string
+        default: packages
+      dry-run:
+        description: Log what would happen without publishing
+        type: boolean
+        default: false
+      prepare-env:
+        description: Build vars for the repository's prepare action, one KEY=VALUE per line (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)
+        type: string
+        default: ""
+    secrets:
+      NF_REGISTRY_KEY:
+        description: NanoForge registry key (nf login)
+        required: true
+    outputs:
+      released:
+        description: '"true" when something was published'
+        value: ${{ jobs.nf-publish.outputs.released }}
+      packages:
+        description: JSON list of the published {name, version}
+        value: ${{ jobs.nf-publish.outputs.packages }}
+
+permissions: {}
+
+jobs:
+  nf-publish:
+    name: Publish to the NanoForge registry
+    runs-on: ubuntu-latest
+    # An allowlist of callers: a dispatch, or a merged registry release PR (never pull_request_target).
+    if: >-
+      github.repository_owner == 'NanoForge-dev' && (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true &&
+      startsWith(github.head_ref, 'nf-releases/')))
+    # Two releases at once would race for the same versions (409). Dry runs get their own group, so one never
+    # replaces a pending real release (a group keeps one pending run).
+    concurrency:
+      group: nf-registry-release${{ inputs.dry-run && '-dry-run' || '' }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      packages: ${{ steps.release.outputs.packages }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          # A version whose {package}@{version} tag exists was released before: the tags sit on older commits,
+          # which a shallow checkout leaves out with them.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      - name: Install the nf CLI
+        run: pnpm install -g @nanoforge-dev/cli
+
+      - name: Log in to the NanoForge registry
+        if: "!inputs.dry-run"
+        env:
+          NF_REGISTRY_KEY: ${{ secrets.NF_REGISTRY_KEY }}
+        run: nf login -k "$NF_REGISTRY_KEY"
+
+      - name: Publish the newer packages and tag them
+        id: release
+        uses: nanoforge-dev/actions/nf-registry-release@v3
+        with:
+          package: ${{ inputs.package }}
+          exclude: ${{ inputs.exclude }}
+          path: ${{ inputs.path }}
+          dry-run: ${{ inputs.dry-run }}

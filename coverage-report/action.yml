@@ -1,0 +1,23 @@
+name: "NanoForge coverage report"
+description: "Writes the totals of the lcov coverage reports in the job summary"
+inputs:
+  files:
+    description: "Glob of the lcov reports, from the repository root (node_modules is skipped)"
+    default: "**/coverage/lcov.info"
+outputs:
+  lines:
+    description: "Line coverage of all the reports, e.g. 84.47%"
+    value: ${{ steps.run.outputs.lines }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Summarize the coverage
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/coverage-report/index.js"
+      env:
+        INPUT_FILES: ${{ inputs.files }}

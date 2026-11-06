@@ -1,35 +1,69 @@
+# Reusable: publishes an alpha of a package from a feature branch. See templates/workflows/alpha-release.yml.
 name: Alpha Release
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      dry_run:
-        description: Perform a dry run?
+      packages:
+        description: Comma-separated packages (empty = the only package of the config)
+        type: string
+        default: ""
+      dry-run:
+        description: Log what would happen without publishing
         type: boolean
         default: false
+      prepare-env:
+        description: Build vars for the repository's prepare action, one KEY=VALUE per line (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)
+        type: string
+        default: ""
+    secrets:
+      NPM_PUBLISH_TOKEN:
+        description: npm token (publishing)
+        required: false
+    outputs:
+      version:
+        description: Alpha version when one package was released, e.g. 1.2.1-alpha.my-branch.0 (else empty), also computed on a dry run
+        value: ${{ jobs.alpha.outputs.version }}
+      versions:
+        description: JSON list of the alpha versions (name@version), also computed on a dry run
+        value: ${{ jobs.alpha.outputs.versions }}
+      sha:
+        description: Commit holding the alpha versions, to build an image from
+        value: ${{ jobs.alpha.outputs.sha }}
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 jobs:
-  alpha-release:
-    name: Alpha release
+  alpha:
+    name: Alpha release (${{ github.ref_name }})
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev' && github.ref_name != 'main' && github.ref_name != 'master'
+    if: github.repository_owner == 'NanoForge-dev' && github.ref_name != github.event.repository.default_branch
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      version: ${{ steps.alpha.outputs.version }}
+      versions: ${{ steps.alpha.outputs.versions }}
+      sha: ${{ steps.alpha.outputs.sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Prepare
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Release alpha
-        uses: ./actions/release-dev
+      - name: Publish the alpha on npm (private packages get the version only)
+        id: alpha
+        uses: nanoforge-dev/actions/prerelease@v3
         with:
-          package: "@nanoforge-dev/actions"
-          tag: alpha
-          dry: ${{ inputs.dry_run }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          channel: alpha
+          packages: ${{ inputs.packages }}
+          dry-run: ${{ inputs.dry-run }}
+          npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}

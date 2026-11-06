@@ -1,54 +1,146 @@
+# Reusable: runs on every merged PR. A merged releases/* PR publishes, tags and syncs the docs (when the config has docs);
+# any other merged PR publishes a beta of the betaOnMerge groups. See templates/workflows/release.yml.
 name: Release
 
 on:
-  pull_request:
-    types:
-      - closed
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      prepare-env:
+        description: Build vars for the repository's prepare action, one KEY=VALUE per line (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)
+        type: string
+        default: ""
+    secrets:
+      NPM_PUBLISH_TOKEN:
+        description: npm token (publishing)
+        required: false
+      NANOFORGE_BOT_TOKEN:
+        description: Token that can push to NanoForge-dev/docs (docs sync)
+        required: false
+    outputs:
+      released:
+        description: '"true" when something was released'
+        value: ${{ jobs.release.outputs.released }}
+      version:
+        description: Version of the first release
+        value: ${{ jobs.release.outputs.version }}
+      tag:
+        description: Tag of the first release
+        value: ${{ jobs.release.outputs.tag }}
+      tags:
+        description: JSON list of every tag created
+        value: ${{ jobs.release.outputs.tags }}
+      packages:
+        description: JSON list of the released {name, version}
+        value: ${{ jobs.release.outputs.packages }}
 
-permissions:
-  contents: write
-  id-token: write
+permissions: {}
 
 jobs:
-  release:
-    name: Release
+  config:
+    name: Read the release config
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && startsWith(github.head_ref, 'releases/')
+    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true
+    permissions:
+      contents: read
+    outputs:
+      beta: ${{ steps.read.outputs.beta }}
+    steps:
+      - name: Checkout the config
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          sparse-checkout: .github/nanoforge.json
+          sparse-checkout-cone-mode: false
+
+      - name: Read the betaOnMerge groups
+        id: read
+        run: |
+          echo "beta=$(jq -r '[.groups[] | select(.betaOnMerge == true)] | length > 0' .github/nanoforge.json)" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Release (${{ github.event.pull_request.title }})
+    runs-on: ubuntu-latest
+    needs: [config]
+    if: startsWith(github.head_ref, 'releases/')
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      tags: ${{ steps.release.outputs.tags }}
+      packages: ${{ steps.release.outputs.packages }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          # Full history and tags: HEAD^1 for the release, and the repo's references script may read tags.
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Prepare
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Release packages
-        uses: ./actions/release-packages
+      - name: Publish the changed packages, tag and release them
+        id: release
+        uses: nanoforge-dev/actions/release@v3
         with:
-          packages: "@nanoforge-dev/actions"
-          tag-format: "{version}"
-          latest: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 
-  beta-release:
+      # Docs run in this job, after the build of the prepare step, instead of preparing a second time.
+      - name: Checkout the docs repository
+        if: steps.release.outputs.docs-version != ''
+        # Packages are already published here: a docs failure must not block the deploy jobs.
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          path: docs-dist
+          repository: NanoForge-dev/docs
+          token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+          persist-credentials: false
+
+      - name: Sync the docs
+        if: steps.release.outputs.docs-version != ''
+        continue-on-error: true
+        uses: nanoforge-dev/actions/docs-sync@v3
+        with:
+          version: ${{ steps.release.outputs.docs-version }}
+          docs-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+
+  beta:
     name: Beta release
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'NanoForge-dev' && github.event.pull_request.merged == true && !startsWith(github.head_ref, 'releases/')
+    needs: [config]
+    if: "!startsWith(github.head_ref, 'releases/') && !startsWith(github.head_ref, 'nf-releases/') && needs.config.outputs.beta == 'true'"
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
-      - name: Prepare
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Release beta
-        uses: ./actions/release-dev
+      - name: Publish the betas on npm
+        uses: nanoforge-dev/actions/prerelease@v3
         with:
-          package: "@nanoforge-dev/actions"
-          tag: beta
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          channel: beta
+          npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}

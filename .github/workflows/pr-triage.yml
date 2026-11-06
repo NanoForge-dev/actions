@@ -1,31 +1,39 @@
-name: "PR Triage"
+# Reusable (and used by this repo): labels PRs from .github/labeler.yml and checks the conventional title.
+name: PR Triage
+
 on:
+  workflow_call:
   pull_request_target:
     types:
       - opened
       - edited
       - reopened
       - synchronize
+
+permissions: {}
+
 jobs:
   label:
+    name: Label
+    runs-on: ubuntu-latest
+    if: github.event.action != 'edited'
     permissions:
       contents: read
       pull-requests: write
       issues: write
-    name: Label
-    if: github.event.action != 'edited'
-    runs-on: ubuntu-latest
     steps:
-      - name: Label pull request
-        uses: actions/labeler@v6
+      - name: Label the pull request from .github/labeler.yml
+        uses: actions/labeler@v7
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          repo-token: ${{ github.token }}
           sync-labels: true
+
   validate-title:
     name: Validate title
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
-      - name: Validate pull request title
+      - name: Check the title follows the conventional commits
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
@@ -34,5 +42,6 @@ jobs:
           echo "Title: \"$TITLE\""
 
           if [[ ! "$TITLE" =~ $REGEX ]]; then
+            echo "::error::The title must follow the conventional commits: type(scope): subject"
             exit 1
           fi

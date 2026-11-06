@@ -1,0 +1,55 @@
+# Reusable: bumps the manifest version of every NanoForge registry package changed since its last release and opens
+# an nf-releases/* PR. Merging it runs nf-registry-release.yml. See templates/workflows/nf-registry-release-pr.yml.
+name: NanoForge Registry Release PR
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Directory holding the packages
+        type: string
+        default: packages
+      dry-run:
+        description: Log what would happen without pushing or opening the PR
+        type: boolean
+        default: false
+    outputs:
+      pull-request:
+        description: URL of the release PR
+        value: ${{ jobs.release-pr.outputs.pull-request }}
+      packages:
+        description: JSON list of the {name, version} to release
+        value: ${{ jobs.release-pr.outputs.packages }}
+
+permissions: {}
+
+jobs:
+  release-pr:
+    name: Create the registry release PR
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'NanoForge-dev'
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: nf-registry-release-pr
+      cancel-in-progress: false
+    outputs:
+      pull-request: ${{ steps.release-pr.outputs.pull-request }}
+      packages: ${{ steps.release-pr.outputs.packages }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          # The bump counts the commits since each package's tag.
+          fetch-depth: 0
+          fetch-tags: true
+
+      # Reads manifests and git history only: no dependencies, no prepare hook.
+      - name: Bump the changed packages and open the PR
+        id: release-pr
+        uses: nanoforge-dev/actions/nf-registry-release-pr@v3
+        with:
+          path: ${{ inputs.path }}
+          dry-run: ${{ inputs.dry-run }}

@@ -1,0 +1,31 @@
+name: Alpha Release
+# The alpha is <next version>-alpha.<branch>.<n>: the exact number is in the job summary.
+run-name: Alpha release ${{ inputs.packages }} on ${{ github.ref_name }}${{ inputs.dry-run && ' (dry run)' || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated packages (empty = the only package of .github/nanoforge.json)
+        type: string
+        default: ""
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  alpha:
+    name: Alpha release
+    uses: nanoforge-dev/actions/.github/workflows/alpha-release.yml@v3
+    with:
+      packages: ${{ inputs.packages }}
+      dry-run: ${{ inputs.dry-run }}
+    secrets:
+      NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+
+  # Repo-specific alpha images go after it: see "Alpha images" in the README.

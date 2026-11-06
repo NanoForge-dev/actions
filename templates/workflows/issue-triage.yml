@@ -1,0 +1,13 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    name: Triage
+    uses: nanoforge-dev/actions/.github/workflows/issue-triage.yml@v3

@@ -2,7 +2,16 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/setup"
+      - "/release-pr"
+      - "/release"
+      - "/prerelease"
+      - "/nf-registry-release"
+      - "/docs-sync"
+      - "/docker-release"
+      - "/export-env"
     schedule:
       interval: "weekly"
     labels:

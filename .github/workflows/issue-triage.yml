@@ -1,15 +1,23 @@
-name: "Issue Labeler"
+# Reusable (and used by this repo): labels new issues from .github/issue-labeler.yml.
+name: Issue Triage
+
 on:
+  workflow_call:
   issues:
     types: [opened]
+
+permissions: {}
+
 jobs:
   issue-triage:
+    name: Label issue
+    runs-on: ubuntu-latest
     permissions:
       issues: write
-    runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v3.4
+      - name: Label the issue from .github/issue-labeler.yml
+        uses: github/issue-labeler@v3.4
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          repo-token: ${{ github.token }}
           configuration-path: .github/issue-labeler.yml
           enable-versioned-regex: 0

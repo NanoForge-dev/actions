@@ -1,0 +1,43 @@
+name: NanoForge Registry Release
+run-name: >-
+  ${{ github.event_name == 'pull_request' && (github.event.pull_request.merged && startsWith(github.head_ref, 'nf-releases/')
+  && format('NanoForge registry release: {0}', github.event.pull_request.title)
+  || format('No registry release: {0}', github.event.pull_request.title))
+  || format('NanoForge registry release ({0}){1}', inputs.package, inputs.dry-run && ' (dry run)' || '') }}
+
+on:
+  # A merged nf-releases/* PR publishes what it bumped.
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  # Publishes every package whose manifest version is newer than the registry.
+  workflow_dispatch:
+    inputs:
+      package:
+        description: One package to release with its dependencies (all = every package)
+        type: string
+        default: all
+      exclude:
+        description: Comma-separated packages not to release, unless a released package needs them
+        type: string
+        default: ""
+      dry-run:
+        description: Perform a dry run?
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  nf-publish:
+    name: NanoForge registry release
+    uses: nanoforge-dev/actions/.github/workflows/nf-registry-release.yml@v3
+    with:
+      package: ${{ inputs.package || 'all' }}
+      exclude: ${{ inputs.exclude || '' }}
+      dry-run: ${{ inputs.dry-run || false }}
+    secrets:
+      NF_REGISTRY_KEY: ${{ secrets.NF_REGISTRY_KEY }}

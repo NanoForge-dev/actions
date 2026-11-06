@@ -1,0 +1,28 @@
+name: Release
+# The release PR title holds the versions (commitFormat); any other merged PR publishes the betas.
+run-name: >-
+  ${{ !github.event.pull_request.merged && format('Closed without merge: {0}', github.event.pull_request.title)
+  || startsWith(github.head_ref, 'releases/') && format('Release: {0}', github.event.pull_request.title)
+  || startsWith(github.head_ref, 'nf-releases/') && format('No npm release: {0}', github.event.pull_request.title)
+  || format('Beta release of {0}', github.event.pull_request.merge_commit_sha) }}
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Release
+    uses: nanoforge-dev/actions/.github/workflows/release.yml@v3
+    secrets:
+      NPM_PUBLISH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+      NANOFORGE_BOT_TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+
+  # Repo-specific deploy jobs (Docker images) go after the release: see "Deploy jobs" in the README.

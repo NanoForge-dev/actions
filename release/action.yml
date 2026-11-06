@@ -1,0 +1,54 @@
+name: "NanoForge release"
+description: "After a release PR is merged: publishes the packages whose version changed on npm, then creates their tags and GitHub releases"
+inputs:
+  npm-token:
+    description: "npm token for publishing (NODE_AUTH_TOKEN)"
+    default: ""
+  config:
+    description: "Path of the release config, from the repository root"
+    default: ".github/nanoforge.json"
+  dry-run:
+    description: "Log what would happen without pushing, publishing or tagging"
+    default: "false"
+  github-token:
+    description: "Token that creates the tags and GitHub releases"
+    default: "${{ github.token }}"
+  base:
+    description: "Commit the package versions are compared with (the tags go on HEAD)"
+    default: "HEAD^1"
+outputs:
+  released:
+    description: '"true" when something was released'
+    value: ${{ steps.run.outputs.released }}
+  version:
+    description: "Version of the first release"
+    value: ${{ steps.run.outputs.version }}
+  tag:
+    description: "Tag of the first release"
+    value: ${{ steps.run.outputs.tag }}
+  tags:
+    description: "JSON list of every tag created"
+    value: ${{ steps.run.outputs.tags }}
+  docs-version:
+    description: "Version to publish the docs at, when the docs group was released (else empty)"
+    value: ${{ steps.run.outputs.docs-version }}
+  packages:
+    description: "JSON list of the released {name, version}"
+    value: ${{ steps.run.outputs.packages }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run release
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/release/index.js"
+      env:
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

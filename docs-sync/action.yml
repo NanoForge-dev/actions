@@ -1,0 +1,81 @@
+name: "NanoForge docs sync"
+description: "Copies a repository's docs (and API references) into the docs repository, regenerates its navigation and pushes it"
+inputs:
+  repository:
+    description: "Name used in the commit message. Empty: this repository's name"
+    default: ""
+  category:
+    description: "Docs category (engine, cli, editor...). Empty: docs.category of the config"
+    default: ""
+  src-path:
+    description: "Path of the source repository"
+    default: "."
+  docs-path:
+    description: "Path of the checked-out docs repository"
+    default: "docs-dist"
+  references:
+    description: "Generate and copy the API references. Empty: docs.references of the config"
+    default: ""
+  references-path:
+    description: "References directory, from src-path. Empty: docs.referencesPath of the config"
+    default: ""
+  version:
+    description: "Released version, the folder of the references (the release action's version output)"
+    default: ""
+  docs-token:
+    description: "Token that can push to the docs repository. Empty: the credentials of its checkout"
+    default: ""
+  docs-repository:
+    description: "owner/name of the docs repository the token pushes to"
+    default: "NanoForge-dev/docs"
+  config:
+    description: "Path of the release config, from the repository root"
+    default: ".github/nanoforge.json"
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run docs-sync
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/docs-sync/index.js"
+      env:
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_CATEGORY: ${{ inputs.category }}
+        INPUT_SRC_PATH: ${{ inputs.src-path }}
+        INPUT_DOCS_PATH: ${{ inputs.docs-path }}
+        INPUT_REFERENCES: ${{ inputs.references }}
+        INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_CONFIG: ${{ inputs.config }}
+    # Separate step: the token is not in the env of the step that runs the repo's docs script.
+    - name: Push the docs
+      if: steps.run.outputs.changed == 'true'
+      shell: bash
+      env:
+        DOCS_PATH: ${{ inputs.docs-path }}
+        DOCS_TOKEN: ${{ inputs.docs-token }}
+        DOCS_REPOSITORY: ${{ inputs.docs-repository }}
+      run: |
+        if [ -z "$DOCS_TOKEN" ]; then git -C "$DOCS_PATH" push --no-verify; exit 0; fi
+        # The docs script ran before this step and could have edited docs-path/.git/config or ~/.gitconfig
+        # (insteadOf, proxy, include, origin...): push from a fresh repo, with no system or global config, to the
+        # docs-repository input, never to the checkout's remote.
+        # shortcut: this narrows the exposure, it doesn't isolate it: earlier steps of the job can still change
+        # this step through $GITHUB_ENV/$GITHUB_PATH. Upgrade to a separate push job if the docs script isn't trusted.
+        export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+        [[ "$DOCS_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "::error::docs-repository must be owner/name"; exit 1; }
+        url="https://github.com/$DOCS_REPOSITORY"
+        branch="$(git -C "$DOCS_PATH" symbolic-ref --short HEAD)"
+        git check-ref-format --branch "$branch" >/dev/null || { echo "::error::Unexpected docs branch"; exit 1; }
+        basic="$(printf 'x-access-token:%s' "$DOCS_TOKEN" | base64 -w0)"
+        echo "::add-mask::$basic"
+        # A new unpredictable directory: a repo planted at a fixed path would keep its own config.
+        clean="$(mktemp -d "$RUNNER_TEMP/docs-push.XXXXXX")"
+        git init -q --bare "$clean"
+        git -C "$clean" fetch -q --no-tags "$(cd "$DOCS_PATH" && pwd)" "HEAD:refs/heads/$branch"
+        git -C "$clean" -c core.hooksPath=/dev/null -c http.proxy= -c http.sslVerify=true -c "http.$url.extraheader=AUTHORIZATION: basic $basic" \
+          push "$url" "refs/heads/$branch:refs/heads/$branch"

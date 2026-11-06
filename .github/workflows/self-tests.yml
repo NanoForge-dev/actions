@@ -1,0 +1,123 @@
+# This repo's own checks. They run the local actions (./setup, ./coverage-report), not @v3, so a change is tested
+# by its own code. Other repos use tests.yml through templates/workflows/tests.yml.
+name: Self Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: ${{ matrix.check.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - { name: Coding style, script: lint }
+          - { name: Typecheck, script: typecheck }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      - name: Run pnpm ${{ matrix.check.script }}
+        id: run
+        env:
+          SCRIPT: ${{ matrix.check.script }}
+        run: pnpm run "$SCRIPT"
+
+      - name: Write the report
+        if: always()
+        env:
+          NAME: ${{ matrix.check.name }}
+          SCRIPT: ${{ matrix.check.script }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# %s\n\n## Result\n\n- pnpm %s: %s\n\n' "$NAME" "$SCRIPT" "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      - name: Run the unit tests with coverage
+        run: pnpm run test:coverage
+
+      - name: Report the coverage
+        if: always()
+        uses: ./coverage-report
+        with:
+          files: coverage/lcov.info
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+
+  actionlint:
+    name: Lint workflows and actions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Run actionlint
+        id: run
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color
+
+      - name: Write the report
+        if: always()
+        env:
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# Workflow lint\n\n## Result\n\n- actionlint: %s\n\n' "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js and pnpm
+        uses: ./setup
+        with:
+          install: "false"
+          swap-size-gb: "0"
+
+      - name: Audit the dependencies
+        run: |
+          pnpm audit --json > "$RUNNER_TEMP/audit.json" || true
+          {
+            printf '# Dependency audit (fails from high)\n\n## Vulnerabilities\n\n'
+            jq -r '.metadata.vulnerabilities // {} | to_entries | map("- \(.key): \(.value)") | join("\n")' "$RUNNER_TEMP/audit.json"
+            printf '\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          pnpm audit --audit-level high

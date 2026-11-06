@@ -183,7 +183,6 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
@@ -224,6 +223,8 @@ dist
 .pnp.*
 
 # Compiled files
+# The action bundles: built in CI, committed only on release/v<major> by self-release.yml, never on main.
+dist/
 src/**/*.js
 src/**/*.d.ts
 

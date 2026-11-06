@@ -1,0 +1,76 @@
+name: "NanoForge setup"
+description: "Installs pnpm and Node.js with the pnpm store cached, then the dependencies"
+inputs:
+  node-version:
+    description: "Node.js version. Empty: read from .nvmrc, else package.json (devEngines or engines.node)"
+    default: ""
+  install:
+    description: "Run pnpm install --frozen-lockfile"
+    default: "true"
+  registry-url:
+    description: "npm registry written to .npmrc, so publishing reads NODE_AUTH_TOKEN"
+    default: "https://registry.npmjs.org"
+  swap-size-gb:
+    description: "Swap space to add on Linux runners for memory-hungry builds. 0: none"
+    default: "10"
+runs:
+  using: composite
+  steps:
+    - name: Set up swap space
+      if: runner.os == 'Linux' && inputs.swap-size-gb != '0'
+      shell: bash
+      env:
+        SWAP_SIZE_GB: ${{ inputs.swap-size-gb }}
+      # Inline instead of a third-party action: this step runs in release jobs that can publish.
+      run: |
+        [[ "$SWAP_SIZE_GB" =~ ^[0-9]+$ ]] || { echo "::error::swap-size-gb must be a whole number"; exit 1; }
+        sudo swapoff -a
+        sudo rm -f /mnt/swapfile
+        sudo fallocate -l "${SWAP_SIZE_GB}G" /mnt/swapfile
+        sudo chmod 600 /mnt/swapfile
+        sudo mkswap /mnt/swapfile
+        sudo swapon /mnt/swapfile
+        swapon --show
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      with:
+        run_install: false
+
+    - name: Pick the Node.js version source
+      id: node
+      shell: bash
+      env:
+        NODE_VERSION: ${{ inputs.node-version }}
+      run: |
+        if [ -n "$NODE_VERSION" ]; then echo "file=" >> "$GITHUB_OUTPUT"
+        elif [ -f .nvmrc ]; then echo "file=.nvmrc" >> "$GITHUB_OUTPUT"
+        else echo "file=package.json" >> "$GITHUB_OUTPUT"
+        fi
+
+    # Caches the pnpm store, keyed on pnpm-lock.yaml.
+    - name: Install Node.js
+      id: setup-node
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ steps.node.outputs.file }}
+        cache: pnpm
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Install the dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile --prefer-offline --loglevel error
+      env:
+        HUSKY: "0"
+
+    - name: Write the report
+      shell: bash
+      env:
+        NODE: ${{ steps.setup-node.outputs.node-version }}
+        CACHE_HIT: ${{ steps.setup-node.outputs.cache-hit }}
+        INSTALL: ${{ inputs.install }}
+      run: |
+        printf '# Setup\n\n## Tools\n\n- Node.js %s\n- pnpm %s (store cache hit: %s)\n- dependencies installed: %s\n\n' \
+          "$NODE" "$(pnpm --version)" "${CACHE_HIT:-false}" "$INSTALL" >> "$GITHUB_STEP_SUMMARY"

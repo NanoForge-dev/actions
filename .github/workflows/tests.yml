@@ -1,23 +1,234 @@
+# Reusable: the checks of a pull request, one job each: coding style (one matrix leg per script), unit tests with
+# coverage, end-to-end tests and the dependency audit. See templates/workflows/tests.yml.
 name: Tests
 
 on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      style-scripts:
+        description: JSON list of the package.json scripts that check the coding style, one matrix job each ("[]" = none)
+        type: string
+        default: '["lint"]'
+      unit-script:
+        description: package.json script of the unit tests (empty = no unit job)
+        type: string
+        default: test:unit
+      coverage-files:
+        description: Glob of the lcov reports the unit script writes, summarized and uploaded (empty = no coverage report)
+        type: string
+        default: "**/coverage/lcov.info"
+      e2e-script:
+        description: package.json script of the end-to-end tests (empty = no e2e job)
+        type: string
+        default: ""
+      e2e-report-path:
+        description: Files uploaded when the e2e tests fail, e.g. playwright traces (empty = none)
+        type: string
+        default: ""
+      playwright:
+        description: Cache the Playwright browsers (~/.cache/ms-playwright) in the e2e job
+        type: boolean
+        default: false
+      audit-level:
+        description: Lowest advisory severity that fails pnpm audit (low, moderate, high, critical; empty = no audit job)
+        type: string
+        default: high
+      prepare-env:
+        description: Build vars for the repository's prepare action, one KEY=VALUE per line (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)
+        type: string
+        default: ""
+
+permissions: {}
 
 jobs:
-  tests:
+  style:
+    name: Coding style (${{ matrix.script }})
     runs-on: ubuntu-latest
+    if: inputs.style-scripts != '[]' && inputs.style-scripts != ''
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        script: ${{ fromJSON(inputs.style-scripts) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Prepare
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
         uses: ./.github/actions/prepare
 
-      - name: Run linter
-        run: pnpm lint
+      # Test jobs hold no token, so a PR may restore main's entries and write its own.
+      - name: Cache the turbo outputs
+        if: hashFiles('turbo.json') != ''
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-style-${{ matrix.script }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-style-${{ matrix.script }}-
+
+      - name: Run pnpm ${{ matrix.script }}
+        id: run
+        env:
+          SCRIPT: ${{ matrix.script }}
+        run: pnpm run "$SCRIPT"
+
+      - name: Write the report
+        if: always()
+        env:
+          SCRIPT: ${{ matrix.script }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# Coding style: %s\n\n## Result\n\n- pnpm %s: %s\n\n' "$SCRIPT" "$SCRIPT" "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    if: inputs.unit-script != ''
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      # No turbo cache here: a cache hit replays the logs without the coverage/ files (test:unit outputs are []),
+      # so the coverage report would only count the packages whose tests ran.
+      - name: Run the unit tests
+        id: run
+        env:
+          SCRIPT: ${{ inputs.unit-script }}
+        run: pnpm run "$SCRIPT"
+
+      - name: Write the report
+        if: always()
+        env:
+          SCRIPT: ${{ inputs.unit-script }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# Unit tests\n\n## Result\n\n- pnpm %s: %s\n\n' "$SCRIPT" "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report the coverage
+        if: always() && inputs.coverage-files != ''
+        uses: nanoforge-dev/actions/coverage-report@v3
+        with:
+          files: ${{ inputs.coverage-files }}
+
+      - name: Upload the coverage reports
+        if: always() && inputs.coverage-files != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: ${{ inputs.coverage-files }}
+          if-no-files-found: ignore
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    if: inputs.e2e-script != ''
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      - name: Cache the turbo outputs
+        if: hashFiles('turbo.json') != ''
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-e2e-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-e2e-
+
+      # The browsers follow the Playwright version, which the lockfile pins.
+      - name: Cache the Playwright browsers
+        if: inputs.playwright
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      # Optional hook for what only the e2e tests need (browsers, services, another repo's build).
+      - name: Prepare the end-to-end tests
+        if: hashFiles('.github/actions/prepare-e2e/action.yml') != ''
+        uses: ./.github/actions/prepare-e2e
+
+      - name: Run the end-to-end tests
+        id: run
+        env:
+          SCRIPT: ${{ inputs.e2e-script }}
+        run: pnpm run "$SCRIPT"
+
+      - name: Write the report
+        if: always()
+        env:
+          SCRIPT: ${{ inputs.e2e-script }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# End-to-end tests\n\n## Result\n\n- pnpm %s: %s\n\n' "$SCRIPT" "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the end-to-end report
+        if: failure() && inputs.e2e-report-path != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: ${{ inputs.e2e-report-path }}
+          if-no-files-found: ignore
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    if: inputs.audit-level != ''
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # pnpm audit reads the lockfile: no install, no prepare hook.
+      - name: Set up Node.js and pnpm
+        uses: nanoforge-dev/actions/setup@v3
+        with:
+          install: "false"
+          swap-size-gb: "0"
+
+      - name: Audit the dependencies
+        env:
+          AUDIT_LEVEL: ${{ inputs.audit-level }}
+        run: |
+          [[ "$AUDIT_LEVEL" =~ ^(low|moderate|high|critical)$ ]] || { echo "::error::audit-level must be low, moderate, high or critical"; exit 1; }
+          pnpm audit --json > "$RUNNER_TEMP/audit.json" || true
+          {
+            printf '# Dependency audit (fails from %s)\n\n## Vulnerabilities\n\n' "$AUDIT_LEVEL"
+            jq -r '.metadata.vulnerabilities // {} | to_entries | map("- \(.key): \(.value)") | join("\n")' "$RUNNER_TEMP/audit.json"
+            printf '\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          pnpm audit --audit-level "$AUDIT_LEVEL"

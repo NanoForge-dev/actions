@@ -1,0 +1,49 @@
+name: "NanoForge prerelease"
+description: "Publishes alpha (per branch) or beta (per commit) versions on npm and deprecates the older ones. Private packages get an alpha version without npm"
+inputs:
+  channel:
+    description: "alpha or beta"
+    default: "alpha"
+  packages:
+    description: "Comma-separated packages. Empty: the only package of the config (alpha) or the betaOnMerge groups (beta)"
+    default: ""
+  npm-token:
+    description: "npm token for publishing (NODE_AUTH_TOKEN)"
+    default: ""
+  config:
+    description: "Path of the release config, from the repository root"
+    default: ".github/nanoforge.json"
+  dry-run:
+    description: "Log what would happen without pushing, publishing or tagging"
+    default: "false"
+  github-token:
+    description: "Token that pushes the alpha version bump to its branch"
+    default: "${{ github.token }}"
+outputs:
+  versions:
+    description: "JSON list of the pre-release versions (name@version), also computed on a dry run"
+    value: ${{ steps.run.outputs.versions }}
+  version:
+    description: "Pre-release version when one package was released, e.g. 1.2.1-alpha.my-branch.0 (else empty), also computed on a dry run"
+    value: ${{ steps.run.outputs.version }}
+  sha:
+    description: "Commit holding the versions: the pushed alpha bump, else the checked-out commit"
+    value: ${{ steps.run.outputs.sha }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: ${{ github.action_path }}/../.bun-version
+    - name: Run prerelease
+      id: run
+      shell: bash
+      run: bun "$GITHUB_ACTION_PATH/../dist/prerelease/index.js"
+      env:
+        INPUT_CHANNEL: ${{ inputs.channel }}
+        INPUT_PACKAGES: ${{ inputs.packages }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}

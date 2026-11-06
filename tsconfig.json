@@ -46,6 +46,6 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": true
   },
-  "include": ["src/**/*.ts", "actions/**/*.ts", "lib/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
