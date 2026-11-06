@@ -86,6 +86,8 @@ const main = async () => {
     const { newVersion, toDeprecate } = resolveRelease(
       pkg.version,
       channel,
+      // shortcut: a private alpha counts only from the version committed on its branch, so a branch recreated
+      // (or its bump commit dropped) reuses a number and overwrites that image tag; read the ghcr tags if that bites.
       npm ? await fetchDevVersions(pkg.name, channel) : [],
     );
     info(

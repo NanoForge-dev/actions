@@ -55,10 +55,10 @@ runs:
         [[ "$REGISTRY" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || { echo "::error::registry \"$REGISTRY\" must be a host like ghcr.io"; exit 1; }
         [[ "$IMAGE" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::image \"$IMAGE\" must look like owner/name"; exit 1; }
         echo "image=${IMAGE,,}" >> "$GITHUB_OUTPUT"
-        # A pre-release (alpha) is built from a feature branch: it writes its own cache and may read the
-        # production one; a release reads and writes only :buildcache, so it never reuses layers built there.
+        # An alpha is built from a feature branch: it writes its own cache and may read the production one; any
+        # other version (a release, an -rc given by hand) reads and writes only :buildcache, never alpha layers.
         ref="$REGISTRY/${IMAGE,,}"
-        if [[ "$VERSION" == *-* ]]; then
+        if [[ "$VERSION" == *-alpha.* ]]; then
           printf 'cache-to=type=registry,ref=%s:buildcache-prerelease,mode=max\n' "$ref" >> "$GITHUB_OUTPUT"
           printf 'cache-from<<EOF\ntype=registry,ref=%s:buildcache\ntype=registry,ref=%s:buildcache-prerelease\nEOF\n' "$ref" "$ref" >> "$GITHUB_OUTPUT"
         else

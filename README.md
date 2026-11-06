@@ -184,7 +184,8 @@ An alpha can also push a Docker image tagged with its version (`X.Y.Z-alpha.<bra
 - `version` is set when the alpha holds one package (else empty, and the job is skipped), also on a dry run: keep the `!inputs.dry-run` guard.
 - Check out `needs.alpha.outputs.sha`, the commit with the alpha version, so the image reports the version it is tagged with.
 - Pass the same `build-args`, `target` and `dockerfile` as the repo's release image job.
-- Alphas write their own layer cache (`:buildcache-prerelease`), so a release image never reuses layers built on a feature branch.
+- Alphas write their own layer cache (`:buildcache-prerelease`), so a release image never reuses layers built on a feature branch. It is hygiene, not isolation: a branch job with `packages: write` can still push any tag of the package.
+- A private app's alpha counts only from the version committed on its branch: a branch recreated with the same name, or with its `chore(release): alpha` commit dropped, reuses a number and overwrites that image tag. npm alphas are safe, since npm refuses a version twice.
 
 ```yaml
 docker:
@@ -322,7 +323,7 @@ Exports static build variables, one `KEY=VALUE` per line, to the next steps of t
 
 ### `docker-release`
 
-Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the layers in the registry under `<registry>/<image>:buildcache`, or `:buildcache-prerelease` for a pre-release version (which reads both and writes only its own) (not the GitHub cache: release runs start from `pull_request` events, whose cache scope no later run can read), then sets that tag in a Helm values file of `NanoForge-dev/cloud-iac` and pushes it (it retries when other image jobs push at the same time).
+Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the layers in the registry under `<registry>/<image>:buildcache`, or `:buildcache-prerelease` for an alpha version (`-alpha.`, which reads both and writes only its own) (not the GitHub cache: release runs start from `pull_request` events, whose cache scope no later run can read), then sets that tag in a Helm values file of `NanoForge-dev/cloud-iac` and pushes it (it retries when other image jobs push at the same time).
 
 | Input                             | Default                       | Description                                             |
 | --------------------------------- | ----------------------------- | ------------------------------------------------------- |
