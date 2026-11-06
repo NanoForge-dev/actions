@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [3.1.1](https://github.com/NanoForge-dev/actions/compare/3.1.0...3.1.1) - (2026-11-06)
+
+## Bug Fixes
+
+- **actions:** Restore the turbo cache before prepare in tests (#113) ([4831564](https://github.com/NanoForge-dev/actions/commit/4831564ed257bacea3cd153f5d05e60630af7e59)) by @Exeloo
+
 # [3.1.0](https://github.com/NanoForge-dev/actions/compare/3.0.0...3.1.0) - (2026-11-06)
 
 ## Ci
