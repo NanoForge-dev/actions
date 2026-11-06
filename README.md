@@ -36,7 +36,9 @@ A single action can also be used on its own: `uses: nanoforge-dev/actions/releas
 - Each repository keeps a `./.github/actions/prepare` action. The workflows run it before any release step. It calls [`setup`](#setup) and adds what the repo needs (emsdk, a build, env vars).
 - The workflows declare the secrets they use, and callers pass exactly those (never `secrets: inherit`, which would hand every secret of the repo to the code behind `v3`):
   - `NPM_PUBLISH_TOKEN`: npm publishing.
-  - `NANOFORGE_BOT_TOKEN`: pushes to `NanoForge-dev/docs` and `NanoForge-dev/cloud-iac`.
+  - `NANOFORGE_DOCS_PRIVATE_KEY`: key of the NanoForge docs GitHub App (Contents write, installed on `NanoForge-dev/docs` only; client ID in the org variable `NANOFORGE_DOCS_CLIENT_ID`), for the docs sync. Pass it only from a repo whose config has docs.
+  - `NANOFORGE_DEPLOY_PRIVATE_KEY`: key of the NanoForge deploy GitHub App (Contents write, installed on `NanoForge-dev/cloud-iac` only; client ID in `NANOFORGE_DEPLOY_CLIENT_ID`), for the image jobs that update cloud-iac. Give it only to the repos that deploy.
+  - Each job mints a one-hour token for the repo it pushes to (`actions/create-github-app-token`). That scoping is the caller's choice: whoever holds a key gets everything its app is installed with. Hence one app per target, and keys visible only to the repos that need them. The release job runs the repo's own code before minting, so the docs key is exposed to that code (ADR 0010); the deploy key is only used in image jobs, where nothing but a checkout runs before it.
   - `NF_REGISTRY_KEY`: the NanoForge registry.
 - Checkouts don't keep credentials (`persist-credentials: false`): a token is only given to the command that pushes, never stored in `.git/config` while dependencies install.
 - Whoever can move the `v3` tag runs code with these secrets in every repo. Protect `main` (required review) and the `v*` and version tags (a ruleset that lets only the release update them).
@@ -168,13 +170,23 @@ docker:
     - uses: actions/checkout@v7
       with:
         persist-credentials: false
+    - id: bot
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ vars.NANOFORGE_DEPLOY_CLIENT_ID }}
+        private-key: ${{ secrets.NANOFORGE_DEPLOY_PRIVATE_KEY }}
+        owner: NanoForge-dev
+        repositories: cloud-iac
+        permission-contents: write
     - uses: nanoforge-dev/actions/docker-release@v3
       with:
         image: ${{ github.repository }}
         version: ${{ needs.release.outputs.version }}
         values-file: kubernetes/nanoforge/<app>-override.yaml
-        cloud-iac-token: ${{ secrets.NANOFORGE_BOT_TOKEN }}
+        cloud-iac-token: ${{ steps.bot.outputs.token }}
 ```
+
+The app token lasts one hour from the mint step: an image build longer than that fails at the cloud-iac push.
 
 ### Alpha images
 
@@ -353,7 +365,7 @@ To run an action locally, set its inputs as `INPUT_<NAME>` env vars, for example
 
 This repository's own CI is `self-tests.yml` (coding style and typecheck, unit tests with coverage, actionlint and the dependency audit). It uses the local actions (`./setup`, `./coverage-report`), not `@v3`, so a change is tested by its own code. The `tests.yml` workflow is for the other repositories.
 
-This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag onto commits that change workflows may need a token with the workflow permission: `self-release.yml` uses `NANOFORGE_BOT_TOKEN` when it is set, and the job fails if the move fails.
+This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag or `release/v3` onto commits that change workflows needs the workflows permission, which `GITHUB_TOKEN` can't have: `self-release-pr.yml` and `self-release.yml` use a token of the NanoForge release GitHub App (installed on this repo only: Contents, Pull requests and Workflows write; key `NANOFORGE_RELEASE_PRIVATE_KEY` and client ID `NANOFORGE_RELEASE_CLIENT_ID` in this repo's `release` environment, whose deployment branches allow `main` only). `self-release-pr.yml` runs only when dispatched from `main`; `self-release.yml` runs on every push to `main` and releases only when the commit changes the `package.json` version (a merged release PR). So no branch code ever gets the release key. The release PR is then opened by the app, so `self-tests.yml` runs on it, and the commits are authored by its bot account. When the app can't give a token (no key, or a permission it isn't granted), the run warns and falls back to `GITHUB_TOKEN`: the release PR then gets no CI run, and moving `v3` or `release/v3` across workflow changes fails. The release key never reaches a consumer's job, since it can move `v3`. The job fails if the move fails.
 
 ## Links
 
