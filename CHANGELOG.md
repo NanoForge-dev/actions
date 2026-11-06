@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+# [4.0.0](https://github.com/NanoForge-dev/actions/compare/3.0.0...4.0.0) - (2026-11-06)
+
+## Ci
+
+- **actions:** Push with short-lived tokens of one github app per target (#109) ([4820ab2](https://github.com/NanoForge-dev/actions/commit/4820ab245e856cbe9a5386db809e4ebde6426e88)) by @Exeloo
+  - **BREAKING CHANGE:** the NANOFORGE_BOT_TOKEN secret is replaced by the NANOFORGE_BOT_PRIVATE_KEY
+secret and the NANOFORGE_BOT_CLIENT_ID variable of the NanoForge bot GitHub App.
+
+* ci(actions): keep the release app key out of consumer jobs and skip docs without a token
+
+* ci(actions): one github app per push target (docs, deploy, release)
+
+* ci(actions): open the release pr and commit as the release app, falling back to github_token
+
+* ci(actions): keep the release app key in a main-only environment
+
+* docs(actions): note that a dist rebuild needs the same release token source
+
 # [3.0.0](https://github.com/NanoForge-dev/actions/compare/2.1.5...3.0.0) - (2026-11-06)
 
 ## Bug Fixes
