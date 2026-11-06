@@ -1,4 +1,5 @@
-# This repo's own release: tags <version>, moves v<major> and creates the GitHub release with the local ./release action.
+# This repo's own release. main never holds dist/: the release commit adds it on top of the merged commit and is
+# pushed to release/v<major>; the tags (<version>, v<major>) and the GitHub release point at it.
 name: Self Release
 run-name: "Self release: ${{ github.event.pull_request.title }}"
 
@@ -10,6 +11,9 @@ on:
       - main
 
 permissions: {}
+
+concurrency:
+  group: self-release
 
 jobs:
   release:
@@ -26,16 +30,34 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 2
 
-      # The release only lists the workspace and calls the API: no dependencies needed.
-      - name: Set up Node.js and pnpm
-        uses: ./setup
-        with:
-          install: "false"
-          swap-size-gb: "0"
+      - name: Prepare the repository and build dist/
+        uses: ./.github/actions/prepare
 
+      # The commit takes the merged commit's dates, so a re-run builds the same commit and the tags still match.
+      - name: Commit dist/ and push it to the release branch
+        id: dist
+        env:
+          TOKEN: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}
+        run: |
+          version=$(jq -r .version package.json)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::package.json version \"$version\" is not X.Y.Z"; exit 1; }
+          branch="release/v${version%%.*}"
+          date=$(git log -1 --format=%cI)
+          git add --force dist
+          GIT_AUTHOR_DATE="$date" GIT_COMMITTER_DATE="$date" git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet --no-verify -m "chore(release): ${version} with dist"
+          basic=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+          echo "::add-mask::$basic"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --force origin "HEAD:refs/heads/$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          printf '# Release commit\n\n- %s on %s, with dist/\n\n' "$(git rev-parse --short HEAD)" "$branch" >> "$GITHUB_STEP_SUMMARY"
+
+      # HEAD is the dist commit: the version change is found against the commit before the merge (HEAD~2).
       # Moving v3 onto commits that change workflows may need more than GITHUB_TOKEN can do: the bot token
       # (with the workflow permission) is used when it is set. A failed move fails the job.
-      - name: Tag the release, move v3 and create the GitHub release
+      - name: Tag the release commit, move v3 and create the GitHub release
         uses: ./release
         with:
+          base: HEAD~2
           github-token: ${{ secrets.NANOFORGE_BOT_TOKEN || github.token }}

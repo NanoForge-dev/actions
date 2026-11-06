@@ -13,6 +13,9 @@ inputs:
   github-token:
     description: "Token that creates the tags and GitHub releases"
     default: "${{ github.token }}"
+  base:
+    description: "Commit the package versions are compared with (the tags go on HEAD)"
+    default: "HEAD^1"
 outputs:
   released:
     description: '"true" when something was released'
@@ -45,6 +48,7 @@ runs:
       run: bun "$GITHUB_ACTION_PATH/../dist/release/index.js"
       env:
         INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_BASE: ${{ inputs.base }}
         INPUT_DRY_RUN: ${{ inputs.dry-run }}
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
         GITHUB_TOKEN: ${{ inputs.github-token }}

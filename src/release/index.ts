@@ -26,16 +26,17 @@ interface Tagged {
   group: ReleaseGroup;
 }
 
-/** Packages of the config whose package.json version changed in the merged commit. */
+/** Packages of the config whose package.json version changed since `base` (the merged commit's parent). */
 const findReleased = async (
   workspace: WorkspacePackage[],
   groups: (pkg: string) => ReleaseGroup | undefined,
 ): Promise<Released[]> => {
   const released: Released[] = [];
+  const base = getString("base", "HEAD^1");
   for (const pkg of workspace) {
     const group = groups(pkg.name);
     if (!group) continue;
-    const before = await showFile("HEAD^1", join(repoRelative(pkg.path), "package.json"));
+    const before = await showFile(base, join(repoRelative(pkg.path), "package.json"));
     const previous = before ? (JSON.parse(before) as { version?: string }).version : undefined;
     if (previous !== pkg.version) released.push({ pkg, group });
   }

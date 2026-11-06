@@ -223,6 +223,8 @@ out
 .pnp.*
 
 # Compiled files
+# The action bundles: built in CI, committed only on release/v<major> by self-release.yml, never on main.
+dist/
 src/**/*.js
 src/**/*.d.ts
 

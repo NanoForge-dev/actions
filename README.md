@@ -339,18 +339,18 @@ Builds and pushes `<registry>/<image>:<version>` with Docker Buildx, caching the
 
 ## Development
 
-The TypeScript sources are in `src/` and run with Bun. `dist/` holds the bundles the actions run, and it is committed: run `pnpm build` and commit `dist/` with every source change. CI fails when it is stale.
+The TypeScript sources are in `src/` and run with Bun. The actions run the bundles in `dist/` (`pnpm build`), which is never committed on `main` or feature branches (it is gitignored). This repo's CI builds it in `./.github/actions/prepare`. A release builds it too: `self-release.yml` commits it on top of the merged commit, pushes that commit to `release/v<major>` (force-moved, like the `v<major>` tag) and puts the tags and the GitHub release on it. So `@v3`, `@<version>` and `@release/v3` hold `dist/`, `@main` doesn't.
 
 ```sh
 pnpm test        # bun test
 pnpm typecheck
 pnpm lint
-pnpm build       # bundles src/*/index.ts into dist/
+pnpm build       # bundles src/*/index.ts into dist/ (gitignored)
 ```
 
 To run an action locally, set its inputs as `INPUT_<NAME>` env vars, for example `INPUT_DRY_RUN=true bun dist/release-pr/index.js`.
 
-This repository's own CI is `self-tests.yml` (coding style and typecheck, unit tests with coverage, the `dist/` freshness check, actionlint and the dependency audit). It uses the local actions (`./setup`, `./coverage-report`), not `@v3`, so a change is tested by its own code. The `tests.yml` workflow is for the other repositories.
+This repository's own CI is `self-tests.yml` (coding style and typecheck, unit tests with coverage, actionlint and the dependency audit). It uses the local actions (`./setup`, `./coverage-report`), not `@v3`, so a change is tested by its own code. The `tests.yml` workflow is for the other repositories.
 
 This repository releases itself with `self-release-pr.yml` and `self-release.yml`. They run the local actions (`./release-pr`), so a release never depends on the previous one, and they move the `v3` tag. Moving a tag onto commits that change workflows may need a token with the workflow permission: `self-release.yml` uses `NANOFORGE_BOT_TOKEN` when it is set, and the job fails if the move fails.
 
