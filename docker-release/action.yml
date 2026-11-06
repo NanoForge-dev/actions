@@ -42,6 +42,7 @@ runs:
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
+        REGISTRY: ${{ inputs.registry }}
         VERSION: ${{ inputs.version }}
         VALUES_FILE: ${{ inputs.values-file }}
         VALUES_KEY: ${{ inputs.values-key }}
@@ -50,10 +51,20 @@ runs:
         [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::version \"$VERSION\" is not semver"; exit 1; }
         [[ "$VALUES_KEY" =~ ^(\.[A-Za-z0-9_-]+)+$ ]] || { echo "::error::values-key \"$VALUES_KEY\" must look like .image.tag"; exit 1; }
         if [ -n "$VALUES_FILE" ] && [ -z "$CLOUD_IAC_TOKEN" ]; then echo "::error::cloud-iac-token is required with values-file"; exit 1; fi
+        # Both end up in step outputs: one line each, nothing that could add another output.
+        [[ "$REGISTRY" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || { echo "::error::registry \"$REGISTRY\" must be a host like ghcr.io"; exit 1; }
+        [[ "$IMAGE" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "::error::image \"$IMAGE\" must look like owner/name"; exit 1; }
         echo "image=${IMAGE,,}" >> "$GITHUB_OUTPUT"
-        # A pre-release (alpha) is built from a feature branch: it writes its own cache, so a production image
-        # never reuses layers built there. It may read the production one.
-        if [[ "$VERSION" == *-* ]]; then echo "cache=buildcache-prerelease" >> "$GITHUB_OUTPUT"; else echo "cache=buildcache" >> "$GITHUB_OUTPUT"; fi
+        # A pre-release (alpha) is built from a feature branch: it writes its own cache and may read the
+        # production one; a release reads and writes only :buildcache, so it never reuses layers built there.
+        ref="$REGISTRY/${IMAGE,,}"
+        if [[ "$VERSION" == *-* ]]; then
+          printf 'cache-to=type=registry,ref=%s:buildcache-prerelease,mode=max\n' "$ref" >> "$GITHUB_OUTPUT"
+          printf 'cache-from<<EOF\ntype=registry,ref=%s:buildcache\ntype=registry,ref=%s:buildcache-prerelease\nEOF\n' "$ref" "$ref" >> "$GITHUB_OUTPUT"
+        else
+          printf 'cache-to=type=registry,ref=%s:buildcache,mode=max\n' "$ref" >> "$GITHUB_OUTPUT"
+          printf 'cache-from=type=registry,ref=%s:buildcache\n' "$ref" >> "$GITHUB_OUTPUT"
+        fi
 
     # The docker-container driver of buildx can export a layer cache; the default docker driver can't.
     - name: Set up Docker Buildx
@@ -88,10 +99,8 @@ runs:
         # A registry cache, not type=gha: release runs start from pull_request events, whose GitHub cache scope
         # (refs/pull/N/merge) no later release can read. Releases write :buildcache, pre-releases
         # :buildcache-prerelease (see the check step).
-        cache-from: |
-          type=registry,ref=${{ inputs.registry }}/${{ steps.check.outputs.image }}:buildcache
-          type=registry,ref=${{ inputs.registry }}/${{ steps.check.outputs.image }}:buildcache-prerelease
-        cache-to: type=registry,ref=${{ inputs.registry }}/${{ steps.check.outputs.image }}:${{ steps.check.outputs.cache }},mode=max
+        cache-from: ${{ steps.check.outputs.cache-from }}
+        cache-to: ${{ steps.check.outputs.cache-to }}
 
     - name: Check out cloud-iac
       if: inputs.values-file != ''
