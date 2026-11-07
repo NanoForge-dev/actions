@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+# [3.2.0](https://github.com/NanoForge-dev/actions/compare/3.1.1...3.2.0) - (2026-11-07)
+
+## Breaking Changes
+
+- **docs-sync:** Sync each repo's folders from its own navigation files (#117) ([fab608d](https://github.com/NanoForge-dev/actions/commit/fab608d29541b1e98949731a08d1eb91162a7f85)) by @Exeloo
+  - **BREAKING CHANGE:** a repo with docs/docs or docs/guides needs a navigation.json in each, docs-sync no longer writes docs.json, references move from references/<version> to references/<category>/<version>, and the category must be a-z, 0-9 and -.
+
+## Bug Fixes
+
+- **actions:** Keep breaking change notes to one line in the changelog (#115) ([3fedd61](https://github.com/NanoForge-dev/actions/commit/3fedd618ef42a17af605a12b389d78b8be82a354)) by @Exeloo
+
 # [3.1.1](https://github.com/NanoForge-dev/actions/compare/3.1.0...3.1.1) - (2026-11-06)
 
 ## Bug Fixes
