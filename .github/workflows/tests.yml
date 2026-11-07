@@ -1,5 +1,5 @@
 # Reusable: the checks of a pull request, one job each: coding style (one matrix leg per script), unit tests with
-# coverage, end-to-end tests and the dependency audit. See templates/workflows/tests.yml.
+# coverage, end-to-end tests, the docs check and the dependency audit. See templates/workflows/tests.yml.
 name: Tests
 
 on:
@@ -211,6 +211,24 @@ jobs:
           name: e2e-report
           path: ${{ inputs.e2e-report-path }}
           if-no-files-found: ignore
+
+  docs:
+    name: Docs check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # hashFiles needs the checkout, so the job always starts and this step skips repos without docs.
+      - name: Check the docs navigation and links
+        if: hashFiles('docs/docs/navigation.json', 'docs/guides/navigation.json') != ''
+        uses: nanoforge-dev/actions/docs-sync@v3
+        with:
+          check: "true"
 
   audit:
     name: Dependency audit

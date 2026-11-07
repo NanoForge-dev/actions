@@ -1,5 +1,5 @@
 name: "NanoForge docs sync"
-description: "Copies a repository's docs (and API references) into the docs repository, regenerates its navigation and pushes it"
+description: "Validates a repository's docs and their navigation, copies them (and the API references) into its folders of the docs repository and pushes them"
 inputs:
   repository:
     description: "Name used in the commit message. Empty: this repository's name"
@@ -31,6 +31,9 @@ inputs:
   config:
     description: "Path of the release config, from the repository root"
     default: ".github/nanoforge.json"
+  check:
+    description: "true: only validate the source docs (navigation and links), for pull requests. No docs repository, no references, no commit"
+    default: "false"
 runs:
   using: composite
   steps:
@@ -51,9 +54,10 @@ runs:
         INPUT_REFERENCES_PATH: ${{ inputs.references-path }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_CHECK: ${{ inputs.check }}
     # Separate step: the token is not in the env of the step that runs the repo's docs script.
     - name: Push the docs
-      if: steps.run.outputs.changed == 'true'
+      if: inputs.check != 'true' && steps.run.outputs.changed == 'true'
       shell: bash
       env:
         DOCS_PATH: ${{ inputs.docs-path }}
@@ -73,9 +77,26 @@ runs:
         git check-ref-format --branch "$branch" >/dev/null || { echo "::error::Unexpected docs branch"; exit 1; }
         basic="$(printf 'x-access-token:%s' "$DOCS_TOKEN" | base64 -w0)"
         echo "::add-mask::$basic"
-        # A new unpredictable directory: a repo planted at a fixed path would keep its own config.
+        # A new unpredictable directory: a repo planted at a fixed path would keep its own config. It has a work tree,
+        # so the docs commit can be rebased when another repo pushed its docs in between.
         clean="$(mktemp -d "$RUNNER_TEMP/docs-push.XXXXXX")"
-        git init -q --bare "$clean"
-        git -C "$clean" fetch -q --no-tags "$(cd "$DOCS_PATH" && pwd)" "HEAD:refs/heads/$branch"
-        git -C "$clean" -c core.hooksPath=/dev/null -c http.proxy= -c http.sslVerify=true -c "http.$url.extraheader=AUTHORIZATION: basic $basic" \
-          push "$url" "refs/heads/$branch:refs/heads/$branch"
+        safe=(-c core.hooksPath=/dev/null -c http.proxy= -c http.sslVerify=true -c "http.$url.extraheader=AUTHORIZATION: basic $basic")
+        bot=(-c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com")
+        git init -q "$clean"
+        # --update-shallow: actions/checkout makes a shallow clone, whose root a plain fetch silently refuses.
+        git -C "$clean" fetch -q --no-tags --update-shallow "$(cd "$DOCS_PATH" && pwd)" HEAD
+        git -C "$clean" "${safe[@]}" checkout -q -B "$branch" FETCH_HEAD
+        for attempt in 1 2 3; do
+          git -C "$clean" "${safe[@]}" push "$url" "refs/heads/$branch:refs/heads/$branch" && exit 0
+          [ "$attempt" = 3 ] && break
+          echo "Push $attempt failed, rebasing on the remote $branch"
+          git -C "$clean" "${safe[@]}" fetch -q --no-tags "$url" "refs/heads/$branch"
+          # Each repo owns its own folders, so this can't conflict unless something else wrote there.
+          git -C "$clean" "${safe[@]}" "${bot[@]}" rebase -q FETCH_HEAD || {
+            git -C "$clean" "${safe[@]}" rebase --abort
+            echo "::error::The docs commit conflicts with the remote $branch"
+            exit 1
+          }
+        done
+        echo "::error::Could not push the docs after 3 attempts"
+        exit 1

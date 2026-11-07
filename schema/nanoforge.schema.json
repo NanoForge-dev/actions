@@ -14,7 +14,7 @@
       "items": { "$ref": "#/$defs/group" }
     },
     "docs": {
-      "description": "Sync the docs into NanoForge-dev/docs after each release",
+      "description": "Sync the docs into NanoForge-dev/docs after each release: docs/docs and docs/guides (each with its navigation.json) replace docs/<category> and guides/<category>",
       "type": "object",
       "required": ["category"],
       "additionalProperties": false,
@@ -25,17 +25,17 @@
           "minLength": 1
         },
         "category": {
-          "description": "Docs category: engine, cli, editor...",
+          "description": "Docs category, the folder name in the docs repo: engine, cli, loader, editor... (a-z, 0-9 and -)",
           "type": "string",
-          "minLength": 1
+          "pattern": "^[a-z0-9-]+$"
         },
         "references": {
-          "description": "Generate the API references (pnpm run docs)",
+          "description": "Generate the API references (pnpm run docs) and publish them under references/<category>/<version>, keeping the highest version of each major",
           "type": "boolean",
           "default": false
         },
         "referencesPath": {
-          "description": "References directory",
+          "description": "Directory the docs script writes: pages and a navigation.json",
           "type": "string",
           "minLength": 1,
           "default": "docs/references"
