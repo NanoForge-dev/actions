@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [3.3.0](https://github.com/NanoForge-dev/actions/compare/3.2.0...3.3.0) - (2026-11-11)
+
+## Features
+
+- **actions:** Add extra runners for the unit and e2e tests (#126) ([f34945b](https://github.com/NanoForge-dev/actions/commit/f34945bbee409812ec7cd62f330564e7adaf073c)) by @Exeloo
+
 # [3.2.0](https://github.com/NanoForge-dev/actions/compare/3.1.1...3.2.0) - (2026-11-07)
 
 ## Breaking Changes
