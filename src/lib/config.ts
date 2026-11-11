@@ -1,6 +1,8 @@
 import { file } from "bun";
 import { join } from "path";
 
+import { formatString } from "./format";
+
 export const CONFIG_PATH = ".github/nanoforge.json";
 
 export type ReleaseMode = "all" | "single" | "some";
@@ -89,6 +91,18 @@ const assertKnownKeys = (obj: Raw, keys: string[], where: string) => {
     throw new Error(`Invalid ${CONFIG_PATH}: unknown key(s) in ${where}: ${unknown.join(", ")}`);
 };
 
+const FORBIDDEN_REF_CHARS = new Set([" ", "~", "^", ":", "?", "*", "[", "\\"]);
+
+/** The rules of `git check-ref-format` for a tag name (which lives under `refs/tags/`, so a bare "@" tag is fine), so a formatted tag can be refused before anything is published. */
+const isValidGitRef = (ref: string): boolean => {
+  if (ref === "" || ref.includes("..") || ref.includes("@{")) return false;
+  if (ref.startsWith("/") || ref.endsWith("/") || ref.includes("//") || ref.endsWith("."))
+    return false;
+  if ([...ref].some((ch) => ch < " " || ch === "\u007f" || FORBIDDEN_REF_CHARS.has(ch)))
+    return false;
+  return ref.split("/").every((part) => !part.startsWith(".") && !part.endsWith(".lock"));
+};
+
 const parseGroup = (raw: unknown, index: number): ReleaseGroup => {
   const where = `groups[${index}]`;
   if (!isObject(raw)) throw new Error(`Invalid ${CONFIG_PATH}: ${where} must be an object`);
@@ -140,6 +154,19 @@ const parseGroup = (raw: unknown, index: number): ReleaseGroup => {
   if (shared && tag.includes("{package}") && group.mode !== "single" && group.packages.length > 1)
     throw new Error(
       `Invalid ${CONFIG_PATH}: ${where}.tagFormat can only use {package} in a shared group that releases one package (mode single)`,
+    );
+  // The tag is only created after the npm publish, so a format git would refuse must fail here:
+  // format it with sample values (the group name included) and check the result as a git ref.
+  const sampleTag = formatString(tag, {
+    name: group.name,
+    package: "@scope/pkg",
+    version: "1.0.0",
+    packages: "",
+    run: "",
+  });
+  if (!isValidGitRef(sampleTag))
+    throw new Error(
+      `Invalid ${CONFIG_PATH}: ${where}.tagFormat "${tag}" gives "${sampleTag}", which is not a valid git tag`,
     );
   // The release workflow only runs for merged releases/* branches.
   if (!group.branchFormat.startsWith("releases/"))
