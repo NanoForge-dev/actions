@@ -10,8 +10,13 @@ export const NF_REGISTRY_URL = "https://api.nanoforge.eu/registry";
 /** The packument without contents or readme, as installers read it. */
 const ABBREVIATED = "application/vnd.npm.install-v1+json";
 
-export const isOnNpm = async (name: string, version: string): Promise<boolean> =>
-  (await fetch(`https://registry.npmjs.org/${name}/${version}`)).ok;
+/** Only a 404 means "not published": any other answer (429, 5xx, …) fails, like `nfRegistryVersions`. */
+export const isOnNpm = async (name: string, version: string): Promise<boolean> => {
+  const res = await fetch(`https://registry.npmjs.org/${name}/${version}`);
+  if (res.status === 404) return false;
+  if (!res.ok) throw new Error(`npm registry: GET ${name}/${version} answered ${res.status}`);
+  return true;
+};
 
 /** Every version of `name` on the NanoForge registry: empty when the package was never published. */
 export const nfRegistryVersions = async (name: string): Promise<string[]> => {
