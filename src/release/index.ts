@@ -1,48 +1,16 @@
 import { endGroup, info, setFailed, setOutput, startGroup } from "@actions/core";
 import { $ } from "bun";
-import { join } from "path";
 import semver from "semver";
 
-import { readPackageChangelog, readRootChangelog } from "../lib/changelog";
-import { type ReleaseGroup, groupOf, loadConfig } from "../lib/config";
-import { formatString } from "../lib/format";
-import { assertCommit, headSha, showFile } from "../lib/git";
+import { groupOf, loadConfig } from "../lib/config";
+import { headSha } from "../lib/git";
 import { createRelease, createTag, moveTag } from "../lib/github";
 import { getBoolean, getString } from "../lib/inputs";
 import { isOnNpm, waitUntil } from "../lib/registry";
 import { sortReleaseTree } from "../lib/release-tree";
 import { writeSummary } from "../lib/summary";
-import { type WorkspacePackage, listWorkspace, repoRelative, rootPath } from "../lib/workspace";
-
-interface Released {
-  pkg: WorkspacePackage;
-  group: ReleaseGroup;
-}
-
-interface Tagged {
-  tag: string;
-  version: string;
-  changelog?: string;
-  group: ReleaseGroup;
-}
-
-/** Packages of the config whose package.json version changed since `base` (the merged commit's parent). */
-const findReleased = async (
-  workspace: WorkspacePackage[],
-  groups: (pkg: string) => ReleaseGroup | undefined,
-): Promise<Released[]> => {
-  const released: Released[] = [];
-  const base = getString("base", "HEAD^1");
-  await assertCommit(base);
-  for (const pkg of workspace) {
-    const group = groups(pkg.name);
-    if (!group) continue;
-    const before = await showFile(base, join(repoRelative(pkg.path), "package.json"));
-    const previous = before ? (JSON.parse(before) as { version?: string }).version : undefined;
-    if (previous !== pkg.version) released.push({ pkg, group });
-  }
-  return released;
-};
+import { listWorkspace, rootPath } from "../lib/workspace";
+import { type Released, type Tagged, findReleased, planTags } from "./plan";
 
 const publishToNpm = async (released: Released[], dry: boolean) => {
   const published: string[] = [];
@@ -78,54 +46,6 @@ const publishToNpm = async (released: Released[], dry: boolean) => {
     endGroup();
   }
   return { published, skipped };
-};
-
-const planTags = async (released: Released[]): Promise<Tagged[]> => {
-  const tagged: Tagged[] = [];
-  const groups = [...new Set(released.map(({ group }) => group))];
-
-  for (const group of groups) {
-    const pkgs = released.filter((entry) => entry.group === group).map(({ pkg }) => pkg);
-    if (group.versioning === "independent") {
-      for (const pkg of pkgs)
-        tagged.push({
-          group,
-          version: pkg.version,
-          tag: formatString(group.tagFormat, {
-            name: group.name,
-            package: pkg.name,
-            version: pkg.version,
-            packages: `${pkg.name}@${pkg.version}`,
-            run: "",
-          }),
-          changelog: await readPackageChangelog(pkg.path, pkg.name, pkg.version),
-        });
-      continue;
-    }
-
-    const versions = [...new Set(pkgs.map((pkg) => pkg.version))];
-    if (versions.length !== 1)
-      throw new Error(
-        `Group "${group.name}" is shared but released several versions: ${versions.join(", ")}`,
-      );
-    const version = versions[0] as string;
-    const only = pkgs.length === 1 ? pkgs[0] : undefined;
-    tagged.push({
-      group,
-      version,
-      tag: formatString(group.tagFormat, {
-        name: group.name,
-        package: only?.name,
-        version,
-        packages: pkgs.map((pkg) => `${pkg.name}@${version}`).join(", "),
-        run: "",
-      }),
-      changelog: only
-        ? await readPackageChangelog(only.path, only.name, version)
-        : await readRootChangelog(rootPath(), version),
-    });
-  }
-  return tagged;
 };
 
 const createTags = async (tagged: Tagged[], dry: boolean): Promise<void> => {
