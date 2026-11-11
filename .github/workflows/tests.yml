@@ -37,6 +37,10 @@ on:
         description: Build vars for the repository's prepare action, one KEY=VALUE per line (NODE_ENV, PUBLIC_*, NEXT_PUBLIC_*, VITE_*)
         type: string
         default: ""
+      extra-runners:
+        description: JSON list of extra runners for the unit and e2e tests, one job each next to the ubuntu ones (e.g. '["windows-latest"]'; "[]" = none)
+        type: string
+        default: "[]"
 
 permissions: {}
 
@@ -209,6 +213,130 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: e2e-report
+          path: ${{ inputs.e2e-report-path }}
+          if-no-files-found: ignore
+
+  # The extra runners get their own jobs, so the unit and e2e jobs (and the required checks) stay as they are.
+  unit-extra:
+    name: Unit tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    if: inputs.unit-script != '' && inputs.extra-runners != '[]' && inputs.extra-runners != ''
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.extra-runners) }}
+    # Windows runners default to pwsh: the steps are bash (Git Bash there).
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Restored before prepare, so a build run there hits it.
+      - name: Cache the turbo outputs
+        if: hashFiles('turbo.json') != ''
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-unit-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-unit-
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      # No coverage report here (the plain unit job has it), so no TURBO_FORCE either.
+      - name: Run the unit tests
+        id: run
+        env:
+          SCRIPT: ${{ inputs.unit-script }}
+        run: pnpm run "$SCRIPT"
+
+      - name: Write the report
+        if: always()
+        env:
+          SCRIPT: ${{ inputs.unit-script }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# Unit tests\n\n## Result\n\n- pnpm %s: %s\n\n' "$SCRIPT" "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-extra:
+    name: End-to-end tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    if: inputs.e2e-script != '' && inputs.extra-runners != '[]' && inputs.extra-runners != ''
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.extra-runners) }}
+    # Windows runners default to pwsh: the steps are bash (Git Bash there).
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Cache the turbo outputs
+        if: hashFiles('turbo.json') != ''
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-e2e-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-e2e-
+
+      - name: Export the prepare env
+        uses: nanoforge-dev/actions/export-env@v3
+        with:
+          env: ${{ inputs.prepare-env }}
+
+      - name: Prepare the repository
+        uses: ./.github/actions/prepare
+
+      # The browsers follow the Playwright version, which the lockfile pins.
+      - name: Cache the Playwright browsers
+        if: inputs.playwright
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      # Optional hook for what only the e2e tests need (browsers, services, another repo's build).
+      - name: Prepare the end-to-end tests
+        if: hashFiles('.github/actions/prepare-e2e/action.yml') != ''
+        uses: ./.github/actions/prepare-e2e
+
+      - name: Run the end-to-end tests
+        id: run
+        env:
+          SCRIPT: ${{ inputs.e2e-script }}
+        run: pnpm run "$SCRIPT"
+
+      - name: Write the report
+        if: always()
+        env:
+          SCRIPT: ${{ inputs.e2e-script }}
+          OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          printf '# End-to-end tests\n\n## Result\n\n- pnpm %s: %s\n\n' "$SCRIPT" "$OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the end-to-end report
+        if: failure() && inputs.e2e-report-path != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report-${{ matrix.runner }}
           path: ${{ inputs.e2e-report-path }}
           if-no-files-found: ignore
 
