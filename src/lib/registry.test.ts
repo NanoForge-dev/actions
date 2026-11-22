@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 
-import { isOnNpm } from "./registry";
+import { isOnNpm, waitUntil } from "./registry";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -20,4 +20,19 @@ test("isOnNpm answers true for a published version and false only on a 404", asy
 test("isOnNpm fails on a registry error instead of reading it as not published", async () => {
   globalThis.fetch = (async () => new Response("", { status: 503 })) as unknown as typeof fetch;
   await expect(isOnNpm("@scope/pkg", "1.0.0")).rejects.toThrow(/503/);
+});
+
+test("waitUntil keeps polling when a check fails, so a registry error after a publish doesn't stop the release", async () => {
+  const answers = [new Error("npm registry: GET @scope/pkg/1.0.0 answered 429"), false, true];
+  let calls = 0;
+  await waitUntil(
+    "@scope/pkg@1.0.0 on npm",
+    async () => {
+      const answer = answers[calls++];
+      if (answer instanceof Error) throw answer;
+      return answer as boolean;
+    },
+    0,
+  );
+  expect(calls).toBe(3);
 });

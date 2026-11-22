@@ -34,12 +34,25 @@ export const isOnNfRegistry = async (name: string, version: string): Promise<boo
 export const isNewerThan = (version: string, published: string[]): boolean =>
   published.every((other) => semver.gt(version, other));
 
-/** Polls `check` until it is true, so a dependent package never publishes before its dependency is visible. */
-export const waitUntil = async (label: string, check: () => Promise<boolean>): Promise<void> => {
+/**
+ * Polls `check` until it is true, so a dependent package never publishes before its dependency is visible.
+ * A failed check (429, 5xx, network) counts as "not visible yet": the package is already published, so only the timeout fails.
+ */
+export const waitUntil = async (
+  label: string,
+  check: () => Promise<boolean>,
+  intervalMs = INTERVAL_MS,
+): Promise<void> => {
   const deadline = performance.now() + TIMEOUT_MS;
-  while (!(await check())) {
-    if (performance.now() > deadline) throw new Error(`Timed out waiting for ${label}`);
-    info(`Waiting for ${label}...`);
-    await sleep(INTERVAL_MS);
+  for (;;) {
+    let reason = "";
+    try {
+      if (await check()) return;
+    } catch (err) {
+      reason = ` (${(err as Error).message})`;
+    }
+    if (performance.now() > deadline) throw new Error(`Timed out waiting for ${label}${reason}`);
+    info(`Waiting for ${label}...${reason}`);
+    await sleep(intervalMs);
   }
 };
