@@ -9,6 +9,16 @@ import { type ReleaseGroup } from "../lib/config";
 import { type WorkspacePackage } from "../lib/workspace";
 import { findReleased, planTags } from "./plan";
 
+// rootPath() prefers GITHUB_WORKSPACE, which every runner sets to the real checkout: point it at the temp repo.
+const useWorkspace = (dir: string) => {
+  const previous = process.env.GITHUB_WORKSPACE;
+  process.env.GITHUB_WORKSPACE = dir;
+  return () => {
+    if (previous === undefined) delete process.env.GITHUB_WORKSPACE;
+    else process.env.GITHUB_WORKSPACE = previous;
+  };
+};
+
 const group = (overrides: Partial<ReleaseGroup> = {}): ReleaseGroup => ({
   name: "grp",
   packages: [],
@@ -43,10 +53,12 @@ const writePkg = (dir: string, name: string, version: string, changelog?: string
 describe("findReleased (real git repo)", () => {
   const cwd = process.cwd();
   let dir = "";
+  let restoreWorkspace = () => {};
 
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), "nf-release-plan-"));
     process.chdir(dir);
+    restoreWorkspace = useWorkspace(dir);
     process.env.INPUT_BASE = "HEAD";
     await $`git init -q -b main`;
     // At HEAD: a and b exist at 1.0.0; c does not exist yet.
@@ -57,6 +69,7 @@ describe("findReleased (real git repo)", () => {
 
   afterAll(() => {
     delete process.env.INPUT_BASE;
+    restoreWorkspace();
     process.chdir(cwd);
     rmSync(dir, { recursive: true, force: true });
   });
@@ -84,13 +97,16 @@ describe("findReleased (real git repo)", () => {
 describe("planTags", () => {
   const cwd = process.cwd();
   let dir = "";
+  let restoreWorkspace = () => {};
 
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), "nf-plan-tags-"));
     process.chdir(dir);
+    restoreWorkspace = useWorkspace(dir);
   });
 
   afterAll(() => {
+    restoreWorkspace();
     process.chdir(cwd);
     rmSync(dir, { recursive: true, force: true });
   });
