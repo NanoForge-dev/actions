@@ -27,15 +27,13 @@ const sanitizeBranch = (branch: string): string => {
     .replace(/^-|-$/g, "");
 };
 
+/** Only a 404 means "never published": any other answer (429, 5xx, …) or a failed request fails the step. */
 export const fetchDevVersions = async (pkgName: string, tag: string): Promise<Version[]> => {
-  try {
-    const res = await fetch(`https://registry.npmjs.org/${pkgName}`);
-    if (!res.ok) return [];
-    const data = (await res.json()) as { versions: Record<string, Version> };
-    return Object.values(data.versions).filter((v) => semver.prerelease(v.version)?.[0] === tag);
-  } catch {
-    return [];
-  }
+  const res = await fetch(`https://registry.npmjs.org/${pkgName}`);
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`npm registry: GET ${pkgName} answered ${res.status}`);
+  const data = (await res.json()) as { versions: Record<string, Version> };
+  return Object.values(data.versions).filter((v) => semver.prerelease(v.version)?.[0] === tag);
 };
 
 export const resolveAlphaRelease = (
