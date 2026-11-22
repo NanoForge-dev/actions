@@ -24,9 +24,10 @@ export const commitBump = (message: string): Bump | undefined => {
 export const highestBump = (messages: string[]): Bump | undefined =>
   messages
     .map(commitBump)
-    .reduce<
-      Bump | undefined
-    >((max, bump) => (bump && (!max || ORDER.indexOf(bump) > ORDER.indexOf(max)) ? bump : max), undefined);
+    .reduce<Bump | undefined>(
+      (max, bump) => (bump && (!max || ORDER.indexOf(bump) > ORDER.indexOf(max)) ? bump : max),
+      undefined,
+    );
 
 export const bumpVersion = (version: string, bump: Bump): string => {
   const next = semver.inc(version, bump);
