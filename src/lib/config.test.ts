@@ -72,6 +72,22 @@ describe("parseConfig", () => {
       /\{packages\} or \{run\}/,
     ],
     [
+      { groups: [{ name: "g", packages: ["a"], tagFormat: "release {version}" }] },
+      /not a valid git tag/,
+    ],
+    [
+      { groups: [{ name: "g", packages: ["a"], tagFormat: "{version}..x" }] },
+      /not a valid git tag/,
+    ],
+    [
+      { groups: [{ name: "g", packages: ["a"], tagFormat: "{version}.lock" }] },
+      /not a valid git tag/,
+    ],
+    [
+      { groups: [{ name: "my group", packages: ["a"], tagFormat: "{name}@{version}" }] },
+      /not a valid git tag/,
+    ],
+    [
       {
         groups: [
           {
