@@ -47,9 +47,15 @@ export const resolveAlphaRelease = (
   const branchSlug = sanitizeBranch(branchName);
   const prefix = `${nextBase}-alpha.${branchSlug}.`;
 
-  const seen = new Set([...existingAlphas.filter((v) => v.version.startsWith(prefix))]);
-  if (currentVersion.startsWith(prefix)) seen.add({ version: currentVersion });
-  const branchAlphas = [...seen];
+  // Key by version: the committed current version is usually on npm already,
+  // with its deprecated message, and must not be deprecated again (#133).
+  const seen = new Map<string, Version>();
+  for (const v of existingAlphas) {
+    if (v.version.startsWith(prefix) && !seen.has(v.version)) seen.set(v.version, v);
+  }
+  if (currentVersion.startsWith(prefix) && !seen.has(currentVersion))
+    seen.set(currentVersion, { version: currentVersion });
+  const branchAlphas = [...seen.values()];
 
   const maxN = branchAlphas.reduce((max, v) => {
     const n = parseInt(v.version.slice(prefix.length), 10);
